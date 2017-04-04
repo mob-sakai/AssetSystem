@@ -25,11 +25,6 @@ namespace AssetBundles
 
         public static void BuildAssetBundles()
         {
-            BuildAssetBundles(null);
-        }
-
-        public static void BuildAssetBundles(AssetBundleBuild[] builds)
-        {
             // Choose the output path according to the build target.
             string outputPath = CreateAssetBundleDirectory();
 
@@ -50,15 +45,8 @@ namespace AssetBundles
 #endif
             }
 
-            if (builds == null || builds.Length == 0)
-            {
-                //@TODO: use append hash... (Make sure pipeline works correctly with it.)
-                BuildPipeline.BuildAssetBundles(outputPath, options, EditorUserBuildSettings.activeBuildTarget);
-            }
-            else
-            {
-                BuildPipeline.BuildAssetBundles(outputPath, builds, options, EditorUserBuildSettings.activeBuildTarget);
-            }
+            //@TODO: use append hash... (Make sure pipeline works correctly with it.)
+            BuildPipeline.BuildAssetBundles(outputPath, options, EditorUserBuildSettings.activeBuildTarget);
         }
 
         public static void WriteServerURL()

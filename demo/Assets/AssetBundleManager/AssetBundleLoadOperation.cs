@@ -1,6 +1,9 @@
 using UnityEngine;
-#if UNITY_5_3 || UNITY_5_4
+#if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
+#endif
+#if UNITY_5_4_OR_NEWER
+using UnityEngine.Networking;
 #endif
 #if ENABLE_IOS_ON_DEMAND_RESOURCES
 using UnityEngine.iOS;
@@ -97,7 +100,11 @@ namespace AssetBundles
                 return;
 
             var path = "res://" + assetBundleName;
+#if UNITY_5_3 || UNITY_5_3_OR_NEWER
+            var bundle = AssetBundle.LoadFromFile(path);
+#else
             var bundle = AssetBundle.CreateFromFile(path);
+#endif
             if (bundle == null)
             {
                 error = string.Format("Failed to load {0}", path);
@@ -128,7 +135,11 @@ namespace AssetBundles
             : base(assetBundleName)
         {
             var path = "res://" + assetBundleName;
+#if UNITY_5_3 || UNITY_5_3_OR_NEWER
+            var bundle = AssetBundle.LoadFromFile(path);
+#else
             var bundle = AssetBundle.CreateFromFile(path);
+#endif
             if (bundle == null)
                 error = string.Format("Failed to load {0}", path);
             else
@@ -183,6 +194,85 @@ namespace AssetBundles
             return m_Url;
         }
     }
+
+#if UNITY_5_4_OR_NEWER
+    public class AssetBundleDownloadWebRequestOperation : AssetBundleDownloadOperation
+    {
+        UnityWebRequest m_request;
+        AsyncOperation m_Operation;
+        string m_Url;
+
+        public AssetBundleDownloadWebRequestOperation(string assetBundleName, UnityWebRequest request)
+            : base(assetBundleName)
+        {
+            if (request == null || !(request.downloadHandler is DownloadHandlerAssetBundle))
+                throw new System.ArgumentNullException("request");
+            m_Url = request.url;
+            m_request = request;
+            m_Operation = request.Send();
+        }
+
+        protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
+
+        protected override void FinishDownload()
+        {
+            error = m_request.error;
+            if (!string.IsNullOrEmpty(error))
+                return;
+
+            var handler = m_request.downloadHandler as DownloadHandlerAssetBundle;
+            AssetBundle bundle = handler.assetBundle;
+            if (bundle == null)
+                error = string.Format("{0} is not a valid asset bundle.", assetBundleName);
+            else
+                assetBundle = new LoadedAssetBundle(bundle);
+
+            m_request.Dispose();
+            m_request = null;
+            m_Operation = null;
+        }
+
+        public override string GetSourceURL()
+        {
+            return m_Url;
+        }
+    }
+
+    public class AssetBundleDownloadFileOperation : AssetBundleDownloadOperation
+    {
+        AssetBundleCreateRequest m_Operation;
+        string m_Url;
+
+        public AssetBundleDownloadFileOperation(string assetBundleName, string url, uint crc = 0, ulong offset = 0)
+            : base(assetBundleName)
+        {
+            m_Operation = AssetBundle.LoadFromFileAsync(url, crc, offset);
+            m_Url = url;
+        }
+
+        protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
+
+        protected override void FinishDownload()
+        {
+            AssetBundle bundle = m_Operation.assetBundle;
+            if (bundle == null) {
+                error = string.Format("failed to load assetBundle {0}.", assetBundleName);
+                return;
+            }
+
+            if (bundle == null)
+                error = string.Format("{0} is not a valid asset bundle.", assetBundleName);
+            else
+                assetBundle = new LoadedAssetBundle(bundle);
+            m_Operation = null;
+        }
+
+        public override string GetSourceURL()
+        {
+            return m_Url;
+        }
+    }
+#endif
 
 #if UNITY_EDITOR
     public class AssetBundleLoadLevelSimulationOperation : AssetBundleLoadOperation
@@ -242,7 +332,7 @@ namespace AssetBundles
             LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle(m_AssetBundleName, out m_DownloadingError);
             if (bundle != null)
             {
-#if UNITY_5_3 || UNITY_5_4
+#if UNITY_5_3 || UNITY_5_3_OR_NEWER
                 m_Request = SceneManager.LoadSceneAsync(m_LevelName, m_IsAdditive ? LoadSceneMode.Additive : LoadSceneMode.Single);
 #else
                 if (m_IsAdditive)
