@@ -59,16 +59,18 @@ namespace AssetBundles
             else
             {
                 IPHostEntry host;
-                string localIP = "";
-                host = Dns.GetHostEntry(Dns.GetHostName());
-                foreach (IPAddress ip in host.AddressList)
-                {
-                    if (ip.AddressFamily == AddressFamily.InterNetwork)
-                    {
-                        localIP = ip.ToString();
-                        break;
-                    }
-                }
+                string localIP = "localhost";
+				try{
+	                host = Dns.GetHostEntry(Dns.GetHostName());
+	                foreach (IPAddress ip in host.AddressList)
+	                {
+	                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+	                    {
+	                        localIP = ip.ToString();
+	                        break;
+	                    }
+	                }
+				}catch{}
                 downloadURL = "http://" + localIP + ":7888/";
             }
 
