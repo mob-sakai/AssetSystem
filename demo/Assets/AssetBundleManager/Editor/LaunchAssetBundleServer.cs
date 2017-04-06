@@ -102,8 +102,23 @@ namespace AssetBundles
             {
                 //We seem to have launched, let's save the PID
                 instance.m_ServerPID = launchProcess.Id;
+
+				//Add process callback.
+				launchProcess.OutputDataReceived += (sender, e) => Log(UnityEngine.Debug.Log, e.Data);
+				launchProcess.ErrorDataReceived += (sender, e) => Log(UnityEngine.Debug.LogError, e.Data);
+				launchProcess.Exited += (sender, e) => Log(UnityEngine.Debug.Log, "Exit");
+
+				launchProcess.BeginOutputReadLine();
+				launchProcess.BeginErrorReadLine();
+				launchProcess.EnableRaisingEvents = true;
             }
         }
+
+		static void Log(Action<string> action, string message)
+		{
+			if (string.IsNullOrEmpty (message))return;
+			action ("<color=orange>[AssetBundleServer]</color> " + message);
+		}
 
         static string GetMonoProfileVersion()
         {
@@ -115,7 +130,7 @@ namespace AssetBundles
 
             for (int i = 0; i < foldersWithApi.Length; i++)
             {
-                foldersWithApi[i] = foldersWithApi[i].Split('\\').Last();
+				foldersWithApi[i] = foldersWithApi[i].Split('\\').Last();
                 foldersWithApi[i] = foldersWithApi[i].Split('-').First();
 
                 if (float.Parse(foldersWithApi[i]) > profileVersion)
