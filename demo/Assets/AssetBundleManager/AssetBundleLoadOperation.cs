@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
 #endif
@@ -9,6 +10,7 @@ using UnityEngine.Networking;
 using UnityEngine.iOS;
 #endif
 using System.Collections;
+using Object = UnityEngine.Object;
 
 namespace AssetBundles
 {
@@ -407,7 +409,7 @@ namespace AssetBundles
 
     public abstract class AssetBundleLoadAssetOperation : AssetBundleLoadOperation
     {
-        public abstract T GetAsset<T>() where T: UnityEngine.Object;
+        public abstract T GetAsset<T>() where T: Object;
     }
 
     public class AssetBundleLoadAssetOperationSimulation : AssetBundleLoadAssetOperation
@@ -437,15 +439,15 @@ namespace AssetBundles
 
     public class AssetBundleLoadAssetOperationFull : AssetBundleLoadAssetOperation
     {
-		protected LoadedAssetBundle     m_LoadedAssetBundle;
         protected string                m_AssetBundleName;
         protected string                m_AssetName;
         protected string                m_DownloadingError;
         protected System.Type           m_Type;
         protected AssetBundleRequest    m_Request = null;
+		protected Dictionary<string, Object> m_RuntimeCache;
 
 		/// <summary>Load asset complete callback.</summary>
-		public System.Action<UnityEngine.Object> onComplete;
+		public System.Action<Object> onComplete;
 
 		/// <summary>Operation identifier.</summary>
 		public string id { get; protected set; }
@@ -455,8 +457,9 @@ namespace AssetBundles
 			return string.Format ("{0}.{1}.{2}", bundleName, assetName, type.Name);
 		}
 
-        public AssetBundleLoadAssetOperationFull(string bundleName, string assetName, System.Type type)
+		public AssetBundleLoadAssetOperationFull(string bundleName, string assetName, System.Type type, Dictionary<string, Object> runtimeCache)
         {
+			m_RuntimeCache = runtimeCache;
             m_AssetBundleName = bundleName;
             m_AssetName = assetName;
             m_Type = type;
@@ -465,6 +468,11 @@ namespace AssetBundles
 
         public override T GetAsset<T>()
 		{
+			// Operation has been cached.
+			Object obj = null;
+			if (m_RuntimeCache != null && m_RuntimeCache.TryGetValue (id, out obj)) {
+				return obj as T;
+			}
 
 			// Loading request has done.
 			if (m_Request != null && m_Request.isDone) {
@@ -477,11 +485,15 @@ namespace AssetBundles
         // Returns true if more Update calls are required.
         public override bool Update()
 		{
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return false;
+			
 			if (m_Request == null) {
-				m_LoadedAssetBundle = AssetBundleManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
-				if (m_LoadedAssetBundle != null) {
+				LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
+				if (bundle != null) {
 					// TODO: When asset bundle download fails this throws an exception...
-					m_Request = m_LoadedAssetBundle.m_AssetBundle.LoadAssetAsync (m_AssetName, m_Type);
+					m_Request = bundle.m_AssetBundle.LoadAssetAsync (m_AssetName, m_Type);
 
 					// Not found specified asset in bundle.
 					if (m_Request == null) {
@@ -490,8 +502,14 @@ namespace AssetBundles
 					}
 				}
 			} 
+
+			// Loading error has occered.
+			if (m_DownloadingError != null) {
+				Debug.LogError(m_DownloadingError);
+			}
+
 			// Load complete.
-			else if(m_Request.isDone) {
+			if(m_Request.isDone) {
 				OnComplete ();
 			}
 
@@ -500,11 +518,14 @@ namespace AssetBundles
 
         public override bool IsDone()
         {
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return true;
+			
             // Return if meeting downloading error.
             // m_DownloadingError might come from the dependency downloading.
-            if (m_Request == null && m_DownloadingError != null)
+            if (m_DownloadingError != null)
             {
-                Debug.LogError(m_DownloadingError);
                 return true;
             }
 
@@ -513,13 +534,16 @@ namespace AssetBundles
 
 		protected override void OnComplete ()
 		{
-			// Cache loaded asset.
-			UnityEngine.Object asset = GetAsset<UnityEngine.Object> ();
+			Object asset = GetAsset<Object> ();
+
+			// Cache the asset.
+			if (m_RuntimeCache != null && asset)
+				m_RuntimeCache [id] = asset;
 
 			if (onComplete == null)
 				return;
 
-			foreach (System.Action<UnityEngine.Object> action in onComplete.GetInvocationList()) {
+			foreach (System.Action<Object> action in onComplete.GetInvocationList()) {
 				try{
 					action (asset);
 				}catch(System.Exception ex){
@@ -537,7 +561,7 @@ namespace AssetBundles
     public class AssetBundleLoadManifestOperation : AssetBundleLoadAssetOperationFull
     {
         public AssetBundleLoadManifestOperation(string bundleName)
-			: base(bundleName, "AssetBundleManifest", typeof(AssetBundleManifest))
+			: base(bundleName, "AssetBundleManifest", typeof(AssetBundleManifest), null)
         {
         }
     }

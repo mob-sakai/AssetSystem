@@ -81,6 +81,7 @@ namespace AssetBundles
         static List<string> m_DownloadingBundles = new List<string>();
         static List<AssetBundleLoadOperation> m_InProgressOperations = new List<AssetBundleLoadOperation>();
         static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]>();
+		static Dictionary<string, UnityEngine.Object> m_RuntimeCache = new Dictionary<string, UnityEngine.Object>();
 		public static Hash128 m_ManifestHash = new Hash128 ();
 
         public static LogMode logMode
@@ -650,6 +651,10 @@ namespace AssetBundles
                 assetBundleName = RemapVariantName(assetBundleName);
 				string operationId = AssetBundleLoadAssetOperationFull.GetId (assetBundleName, assetName, type);
 
+				// Operation has not been cached. Need load the assetbundle.
+				if(!m_RuntimeCache.ContainsKey(operationId))
+                	LoadAssetBundle(assetBundleName);
+
 				// Search same operation in progress to merge load complete callbacks.
 				AssetBundleLoadAssetOperationFull operation = null;
 				foreach (var progressOperation in m_InProgressOperations) {
@@ -663,7 +668,7 @@ namespace AssetBundles
 				// When no same operation in progress, create new operation.
 				if(operation == null)
 				{
-					operation = new AssetBundleLoadAssetOperationFull(assetBundleName, assetName, type);
+					operation = new AssetBundleLoadAssetOperationFull(assetBundleName, assetName, type, m_RuntimeCache);
 					m_InProgressOperations.Add(operation);
 				}
 
