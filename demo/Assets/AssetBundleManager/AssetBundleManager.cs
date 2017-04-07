@@ -606,14 +606,24 @@ namespace AssetBundles
             m_DownloadingBundles.Remove(download.assetBundleName);
         }
 
+		/// <summary>
+		/// Starts a load operation for an asset from the given asset bundle.
+		/// </summary>
+		static public AssetBundleLoadAssetOperation LoadAssetAsync<T>(string assetBundleName, string assetName, System.Action<T> onLoad = null) where T:UnityEngine.Object
+		{
+			if(onLoad != null)
+				return LoadAssetAsync (assetBundleName, assetName, typeof(T), obj => onLoad (obj as T));
+			else
+				return LoadAssetAsync (assetBundleName, assetName, typeof(T));
+		}
+
         /// <summary>
         /// Starts a load operation for an asset from the given asset bundle.
         /// </summary>
-        static public AssetBundleLoadAssetOperation LoadAssetAsync(string assetBundleName, string assetName, System.Type type)
+		static public AssetBundleLoadAssetOperation LoadAssetAsync(string assetBundleName, string assetName, System.Type type, System.Action<UnityEngine.Object> onLoad = null)
         {
             Log(LogType.Info, "Loading " + assetName + " from " + assetBundleName + " bundle");
 
-            AssetBundleLoadAssetOperation operation = null;
 #if UNITY_EDITOR
             if (SimulateAssetBundleInEditor)
             {
@@ -626,19 +636,44 @@ namespace AssetBundles
 
                 // @TODO: Now we only get the main object from the first asset. Should consider type also.
                 UnityEngine.Object target = AssetDatabase.LoadMainAssetAtPath(assetPaths[0]);
-                operation = new AssetBundleLoadAssetOperationSimulation(target);
+				AssetBundleLoadAssetOperationSimulation operation = new AssetBundleLoadAssetOperationSimulation(target);
+
+				// Load complete callback.
+				if (onLoad != null) {
+					onLoad(target);
+				}
+				return operation;
             }
             else
 #endif
             {
                 assetBundleName = RemapVariantName(assetBundleName);
-                LoadAssetBundle(assetBundleName);
-                operation = new AssetBundleLoadAssetOperationFull(assetBundleName, assetName, type);
+				string operationId = AssetBundleLoadAssetOperationFull.GetId (assetBundleName, assetName, type);
 
-                m_InProgressOperations.Add(operation);
+				// Search same operation in progress to merge load complete callbacks.
+				AssetBundleLoadAssetOperationFull operation = null;
+				foreach (var progressOperation in m_InProgressOperations) {
+					var op = progressOperation as AssetBundleLoadAssetOperationFull;
+					if (op != null && op.id == operationId) {
+						operation = op;
+						break;
+					}
+				}
+
+				// When no same operation in progress, create new operation.
+				if(operation == null)
+				{
+					operation = new AssetBundleLoadAssetOperationFull(assetBundleName, assetName, type);
+					m_InProgressOperations.Add(operation);
+				}
+
+				// Add load complete callback.
+				if (onLoad != null) {
+					operation.onComplete += onLoad;
+				}
+
+				return operation;
             }
-
-            return operation;
         }
 
         /// <summary>
