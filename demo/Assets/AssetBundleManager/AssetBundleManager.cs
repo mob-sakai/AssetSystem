@@ -298,7 +298,7 @@ namespace AssetBundles
         }
 
         // Temporarily work around a il2cpp bug
-        static protected void LoadAssetBundle(string assetBundleName)
+		static public void LoadAssetBundle(string assetBundleName)
         {
             LoadAssetBundle(assetBundleName, false);
         }
@@ -871,5 +871,54 @@ namespace AssetBundles
 			m_InProgressOperations.Add(operation);
 			return operation;
 		}
+
+		public static System.Text.StringBuilder GenerateReportText()
+		{
+			System.Text.StringBuilder sb = new System.Text.StringBuilder ();
+
+			sb.AppendFormat ("[{0} Report] manifestHash:{1}, spaceOccupied:{2}, RuntimeCached:{3}, LoadedBundles:{4}, InProgress:{5}, DownloadingBundles:{6}\n",
+				typeof(AssetBundleManager).Name,
+				m_ManifestHash,
+				Caching.spaceOccupied,
+				m_RuntimeCache.Count,
+				m_LoadedAssetBundles.Count,
+				m_InProgressOperations.Count,
+				m_DownloadingBundles.Count
+			);
+
+			if (0 < m_Depended.Count)
+			{
+				sb.Append ("\n[Depended] ");
+				foreach(var key in m_Depended.Keys)
+				{
+					sb.AppendFormat ("\n{0}: ",key);
+					foreach(var id in m_Depended[key])
+						sb.AppendFormat ("{0}: ,", id);
+				}
+			}
+
+			if (0 < m_DownloadingErrors.Count)
+			{
+				sb.Append ("\n[DownloadingErrors] ");
+				foreach(var error in m_DownloadingErrors)
+					sb.AppendFormat ("\n{0}: ", error);
+			}
+
+			if(m_AssetBundleManifest)
+			{
+				var bundles = m_AssetBundleManifest.GetAllAssetBundles ();
+				sb.AppendFormat ("\n[Manifest] {0}, bundles:{1}", m_AssetBundleManifest.name, bundles.Length);
+				sb.Append ("\n[Cached] ");
+				foreach(var ab in bundles)
+				{
+					var hash = m_AssetBundleManifest.GetAssetBundleHash (ab);
+					if (Caching.IsVersionCached (ab, hash))
+						sb.AppendFormat ("\n{0} [{1}]", ab, hash.ToString().Substring(0, 4));
+				}
+			}
+
+			return sb;
+		}
+
     } // End of AssetBundleManager.
 }
