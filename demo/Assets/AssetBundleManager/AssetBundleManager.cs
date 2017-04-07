@@ -670,5 +670,54 @@ namespace AssetBundles
 
             return operation;
         }
+
+		/// <summary>
+		/// Delete cached asset bundle.
+		/// </summary>
+		/// <param name="assetBundleName">AssetBundle name.</param>
+		static public void DeleteAssetBundle(string assetBundleName)
+		{
+			if (!m_AssetBundleManifest)
+			{
+				Debug.LogError ("Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
+				return;
+			}
+
+			DeleteAssetBundle (assetBundleName, m_AssetBundleManifest.GetAssetBundleHash (assetBundleName));
+		}
+
+		/// <summary>
+		/// Delete cached asset bundle.
+		/// </summary>
+		/// <param name="assetBundleName">AssetBundle name.</param>
+		/// <param name="hash">hash.</param>
+		static public void DeleteAssetBundle(string assetBundleName, Hash128 hash)
+		{
+			UnloadAssetBundle (assetBundleName);
+			if (Caching.IsVersionCached (assetBundleName, hash))
+			{
+				Debug.LogFormat ("Delete assetbundle {0}, hash {1}", assetBundleName, hash);
+#if UNITY_5_4_OR_NEWER
+				UnityWebRequest.GetAssetBundle (assetBundleName, hash, uint.MaxValue).Send();
+#else
+				// Although error log comes out, there is no problem.
+				WWW.LoadFromCacheOrDownload (assetBundleName, hash, uint.MaxValue);
+#endif
+			}
+		}
+
+		/// <summary>
+		/// Delete all cached asset bundle.
+		/// </summary>
+		static public void DeleteAssetBundleAll()
+		{
+			Caching.CleanCache ();
+
+			if (!m_AssetBundleManifest)
+				return;
+			
+			foreach (var bundleName in m_AssetBundleManifest.GetAllAssetBundles())
+				DeleteAssetBundle (bundleName, m_AssetBundleManifest.GetAssetBundleHash(bundleName));
+		}
     } // End of AssetBundleManager.
 }
