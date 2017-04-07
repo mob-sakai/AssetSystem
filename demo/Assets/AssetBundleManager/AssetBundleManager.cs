@@ -81,6 +81,7 @@ namespace AssetBundles
         static List<string> m_DownloadingBundles = new List<string>();
         static List<AssetBundleLoadOperation> m_InProgressOperations = new List<AssetBundleLoadOperation>();
         static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]>();
+		public static Hash128 m_ManifestHash = new Hash128 ();
 
         public static LogMode logMode
         {
@@ -474,8 +475,10 @@ namespace AssetBundles
                 } else {
                     UnityWebRequest request = null;
                     if (isLoadingAssetBundleManifest) {
-                        // For manifest assetbundle, always download it as we don't have hash for it.
-                        request = UnityWebRequest.GetAssetBundle(url);
+						// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
+						Debug.LogFormat("LoadingAssetBundleManifest: {0}, {1} (cached:{2})", url, m_ManifestHash, Caching.IsVersionCached(assetBundleName, m_ManifestHash));
+						request = m_ManifestHash != default(Hash128) ? UnityWebRequest.GetAssetBundle(url, m_ManifestHash, 0)
+							: UnityWebRequest.GetAssetBundle(url);
                     } else {
                         request = UnityWebRequest.GetAssetBundle(url, m_AssetBundleManifest.GetAssetBundleHash(assetBundleName), 0);
                     }
@@ -484,6 +487,11 @@ namespace AssetBundles
 #else
                 WWW download = null;
                 if (isLoadingAssetBundleManifest) {
+
+					// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
+					Debug.LogFormat("LoadingAssetBundleManifest: {0}, {1} (cached:{2})", url, m_ManifestHash, Caching.IsVersionCached(assetBundleName, m_ManifestHash));
+					download = m_ManifestHash != default(Hash128) ? WWW.LoadFromCacheOrDownload(url, m_ManifestHash, 0)
+							: WWW(url);
                     // For manifest assetbundle, always download it as we don't have hash for it.
                     download = new WWW(url);
                 } else {
@@ -707,6 +715,34 @@ namespace AssetBundles
 			foreach (var bundleName in m_AssetBundleManifest.GetAllAssetBundles())
 				DeleteAssetBundle (bundleName, m_AssetBundleManifest.GetAssetBundleHash(bundleName));
 		}
+
+		/// <summary>
+		/// Update manifest.
+		/// Compare manifests and delete old cached bundles.
+		/// Starts download of manifest asset bundle.
+		/// Returns the manifest asset bundle downolad operation object.
+		/// </summary>
+		/// <param name="manifest">Asset bundle manifest.</param>
+		public static void UpdateManifest (AssetBundleManifest manifest)
+		{
+			var oldManifest = m_AssetBundleManifest;
+			m_AssetBundleManifest = manifest;
+
+			if (!oldManifest)
+				return;
+			
+			var oldBundles = new HashSet<string>( oldManifest.GetAllAssetBundles() );
+			var newBundles = new HashSet<string>( manifest.GetAllAssetBundles() );
+
+			foreach (var name in oldBundles) {
+				var oldHash = oldManifest.GetAssetBundleHash (name);
+
+				// The bundle has removed or changed. Need to delete cached bundle.
+				if (!newBundles.Contains (name) || oldHash != manifest.GetAssetBundleHash (name))
+					DeleteAssetBundle (name, oldHash);
+			}
+		}
+
 		/// <summary>
 		/// Starts download of manifest asset bundle.
 		/// Returns the manifest asset bundle downolad operation object.
@@ -715,6 +751,7 @@ namespace AssetBundles
 		{
 			return UpdateManifest(Utility.GetPlatformName());
 		}
+
 		/// <summary>
 		/// Starts download of manifest asset bundle.
 		/// Returns the manifest asset bundle downolad operation object.
@@ -728,9 +765,20 @@ namespace AssetBundles
 				return null;
 			#endif
 
+			m_DownloadingErrors.Clear ();
+			m_RuntimeCache.Clear ();
+			m_InProgressOperations.ForEach (op => op.Cancel());
+			m_InProgressOperations.Clear ();
+			foreach(var assetBundleName in new List<string>(m_LoadedAssetBundles.Keys))
+				UnloadAssetBundleInternal (assetBundleName);
+			m_LoadedAssetBundles.Clear ();
+
 			LoadAssetBundle(manifestAssetBundleName, true);
 			var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName);
-			operation.onComplete += obj => m_AssetBundleManifest = obj as AssetBundleManifest;
+			operation.onComplete += obj => {
+				UpdateManifest (obj as AssetBundleManifest);
+				UnloadAssetBundle(manifestAssetBundleName);
+			};
 			m_InProgressOperations.Add(operation);
 			return operation;
 		}
