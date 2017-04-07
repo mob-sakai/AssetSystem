@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using AssetBundles;
-
+using System.Linq;
 
 public class Test : MonoBehaviour
 {
@@ -15,6 +15,13 @@ public class Test : MonoBehaviour
 
 
 	public RawImage image;
+
+	public Text m_Log;
+
+	void Update()
+	{
+		m_Log.text = AssetBundleManager.GenerateReportText ().ToString ();
+	}
 
     // Use this for initialization
 //    IEnumerator Start()
@@ -36,15 +43,18 @@ public class Test : MonoBehaviour
 	public void InitializeXXX()
 	{
 		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-		AssetBundleManager.m_CacheAssetBundleManifest = true;
+		AssetBundleManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+
+//		AssetBundleManager.m_CacheAssetBundleManifest = true;
 		var request = AssetBundleManager.Initialize();
 	}
 
 
 	public void UpdateManifest()
 	{
-		AssetBundleManager.m_RuntimeCache.Clear ();
+//		AssetBundleManager.m_RuntimeCache.Clear ();
 		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+		AssetBundleManager.m_ManifestHash = Hash128.Parse (resourceVersion);
 		AssetBundleManager.UpdateManifest();
 	}
 
@@ -55,37 +65,46 @@ public class Test : MonoBehaviour
 		var manifest = AssetBundleManager.AssetBundleManifestObject;
 		foreach (var name in manifest.GetAllAssetBundles()) {
 			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
-
-//			if (!Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
+			if (!Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
 				AssetBundleManager.LoadAssetBundle (name);
-//			}
+			}
 		}
 	}
 
 
 	public void Load()
 	{
-		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+		StartCoroutine (CoLoad());
+//		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+	}
+
+	IEnumerator CoLoad()
+	{
+		var op = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(Texture2D));
+
+		yield return StartCoroutine (op);
+		image.texture = op.GetAsset<Texture2D> ();
 	}
 
 	public void ClearAll()
 	{
-		string baseUrl = AssetBundleManager.BaseDownloadingURL;
-
-		var manifest = AssetBundleManager.AssetBundleManifestObject;
-		foreach (var name in manifest.GetAllAssetBundles()) {
-			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
-
-			if (Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
-				Debug.Log ("Delete! " + name);
-				WWW.LoadFromCacheOrDownload (baseUrl + name, manifest.GetAssetBundleHash (name), uint.MaxValue);
-			}
-		}
-
-		Caching.CleanCache ();
+		AssetBundleManager.DeleteAssetBundleAll ();
+//		string baseUrl = AssetBundleManager.BaseDownloadingURL;
+//
+//		var manifest = AssetBundleManager.AssetBundleManifestObject;
+//		foreach (var name in manifest.GetAllAssetBundles()) {
+//			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
+//
+//			if (Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
+//				Debug.Log ("Delete! " + name);
+//				WWW.LoadFromCacheOrDownload (baseUrl + name, manifest.GetAssetBundleHash (name), uint.MaxValue);
+//			}
+//		}
+//
+//		Caching.CleanCache ();
 	}
 
-
+	/*
 	public void Check()
 	{
 		string platform = Utility.GetPlatformName ();
@@ -105,6 +124,7 @@ public class Test : MonoBehaviour
 			Caching.spaceOccupied
 		);
 	}
+	*/
 //
 //    // Initialize the downloading URL.
 //    // eg. Development server / iOS ODR / web URL
@@ -174,4 +194,41 @@ public class Test : MonoBehaviour
 //        float elapsedTime = Time.realtimeSinceStartup - startTime;
 //        Debug.Log(assetName + (prefab == null ? " was not" : " was") + " loaded successfully in " + elapsedTime + " seconds");
 //    }
+}
+
+
+
+namespace System.Collections.Generic
+{
+	using System.Linq;
+	public static class CollectionExtentions
+	{
+		public static string Dump<T1, T2>(this IEnumerable<T1> self, System.Func<T1,T2> selector)
+		{
+			return self.Select(selector).Dump();
+		}
+
+		public static string Dump<T>(this IEnumerable<T> self)
+		{
+			return self.Select(x => x != null ? x.ToString() : "null").Dump();
+		}
+
+		public static string Dump(this IEnumerable<string> self)
+		{
+			return !self.Any() ? "" : self.Aggregate(new System.Text.StringBuilder(), (a, b) => a.Append(b + ", "), x =>{ x.Length -= 2; return x.ToString();});
+		}
+
+		public static void LogDump<T>(this IEnumerable<T> self)
+		{
+			Debug.Log(self.Dump());
+		}
+
+		public static void LogDump<T>(this IEnumerable<T> self, string label)
+		{
+			if (string.IsNullOrEmpty (label))
+				self.LogDump ();
+			else
+				Debug.LogFormat("{0}: {1}", label, self.Dump());
+		}
+	}
 }

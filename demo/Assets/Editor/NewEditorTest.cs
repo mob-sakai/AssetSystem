@@ -9,8 +9,9 @@ public class NewEditorTest {
 		Hash128 hash = new Hash128 (uint.MaxValue, 0, 0, 0);
 
 		Debug.Log (hash.ToString());
-		Debug.Log (Hash128.Parse("0cbe0f6edd536caea5cf5651cd4bf922"));
-		Debug.Log (Hash128.Parse("0cbe0f6edd536caea5cf5651cd4bf922cb9110ac"));
-		Debug.Log (Hash128.Parse("0cbe0f"));
+		Debug.Log (Hash128.Parse("hogehoge"));
+		Debug.Log (Hash128.Parse("////"));
+		Debug.Log (Hash128.Parse("...."));
+		Debug.Log (Hash128.Parse("http://mobcast.com/hogehoge/12318923498729479374923"));
 	}
 }
