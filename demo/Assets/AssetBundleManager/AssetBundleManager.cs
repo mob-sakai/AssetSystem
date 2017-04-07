@@ -39,8 +39,6 @@ namespace AssetBundles
     public class LoadedAssetBundle
     {
         public AssetBundle m_AssetBundle;
-        public int m_ReferencedCount;
-
         internal event Action unload;
 
         internal void OnUnload()
@@ -53,7 +51,6 @@ namespace AssetBundles
         public LoadedAssetBundle(AssetBundle assetBundle)
         {
             m_AssetBundle = assetBundle;
-            m_ReferencedCount = 1;
         }
     }
 
@@ -83,6 +80,8 @@ namespace AssetBundles
         static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]>();
 		static Dictionary<string, UnityEngine.Object> m_RuntimeCache = new Dictionary<string, UnityEngine.Object>();
 		public static Hash128 m_ManifestHash = new Hash128 ();
+		static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>> ();
+		static HashSet<string> m_Unloadable = new HashSet<string> ();
 
         public static LogMode logMode
         {
@@ -419,6 +418,51 @@ namespace AssetBundles
             }
         }
 
+		public static void AddDepend(string assetBundleName, string dependedId)
+		{
+			HashSet<string> depended;
+			if(!m_Depended.TryGetValue(assetBundleName, out depended))
+			{
+				if (string.IsNullOrEmpty (dependedId))
+				{
+					m_Unloadable.Add (assetBundleName);
+					return;
+				}
+
+				depended = new HashSet<string> ();
+				m_Depended.Add (assetBundleName, depended);
+			}
+			if(!string.IsNullOrEmpty(dependedId))
+				depended.Add (dependedId);
+			
+			UpdateDepend (assetBundleName, dependedId, depended);
+		}
+
+
+		public static void SubDepend(string assetBundleName, string dependedId)
+		{
+			HashSet<string> depended;
+			if(m_Depended.TryGetValue(assetBundleName, out depended))
+			{
+				if(!string.IsNullOrEmpty(dependedId))
+					depended.Remove (dependedId);
+			}
+			UpdateDepend (assetBundleName, dependedId, depended);
+		}
+
+		public static void UpdateDepend(string assetBundleName, string dependedId, HashSet<string> depended)
+		{
+			if (depended != null && 0 < depended.Count)
+			{
+				m_Unloadable.Remove (assetBundleName);
+			}
+			else
+			{
+				m_Unloadable.Add (assetBundleName);
+				m_Depended.Remove (assetBundleName);
+			}
+		}
+
         // Sets up download operation for the given asset bundle if it's not downloaded already.
         static protected bool LoadAssetBundleInternal(string assetBundleName, bool isLoadingAssetBundleManifest)
         {
@@ -427,7 +471,6 @@ namespace AssetBundles
             m_LoadedAssetBundles.TryGetValue(assetBundleName, out bundle);
             if (bundle != null)
             {
-                bundle.m_ReferencedCount++;
                 return true;
             }
 
@@ -525,8 +568,11 @@ namespace AssetBundles
 
             // Record and load all dependencies.
             m_Dependencies.Add(assetBundleName, dependencies);
-            for (int i = 0; i < dependencies.Length; i++)
-                LoadAssetBundleInternal(dependencies[i], false);
+			foreach (var dependency in dependencies)
+			{
+				AddDepend (dependency, assetBundleName);
+				LoadAssetBundleInternal (dependency, false);
+			}
         }
 
         /// <summary>
@@ -541,7 +587,6 @@ namespace AssetBundles
 #endif
             assetBundleName = RemapVariantName(assetBundleName);
 
-            UnloadAssetBundleInternal(assetBundleName);
             UnloadDependencies(assetBundleName);
         }
 
@@ -554,7 +599,7 @@ namespace AssetBundles
             // Loop dependencies.
             foreach (var dependency in dependencies)
             {
-                UnloadAssetBundleInternal(dependency);
+				SubDepend (dependency, assetBundleName);
             }
 
             m_Dependencies.Remove(assetBundleName);
@@ -567,13 +612,10 @@ namespace AssetBundles
             if (bundle == null)
                 return;
 
-            if (--bundle.m_ReferencedCount == 0)
-            {
-                bundle.OnUnload();
-                m_LoadedAssetBundles.Remove(assetBundleName);
+            bundle.OnUnload();
+            m_LoadedAssetBundles.Remove(assetBundleName);
 
-                Log(LogType.Info, assetBundleName + " has been unloaded successfully");
-            }
+            Log(LogType.Info, assetBundleName + " has been unloaded successfully");
         }
 
         void Update()
@@ -591,12 +633,19 @@ namespace AssetBundles
                     m_InProgressOperations.RemoveAt(i);
                 }
             }
+
+			foreach(var assetBundleName in m_Unloadable)
+				UnloadAssetBundleInternal (assetBundleName);
+			m_Unloadable.Clear ();
         }
 
 		static void OnCompleteAssetBundleDownloadOperation(AssetBundleDownloadOperation download)
         {
             if (download.error == null)
+			{
                 m_LoadedAssetBundles.Add(download.assetBundleName, download.assetBundle);
+				AddDepend (download.assetBundleName, null);
+			}
             else
             {
                 string msg = string.Format("Failed downloading bundle {0} from {1}: {2}",

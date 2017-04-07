@@ -390,6 +390,8 @@ namespace AssetBundles
 					m_DownloadingError = string.Format("There is no level {0} in {1}", m_LevelName, m_AssetBundleName );
 					Debug.LogError(m_DownloadingError);
 				}
+				else
+					AssetBundleManager.AddDepend(m_AssetBundleName, m_LevelName);
             }
 
 			return IsDone();
@@ -406,6 +408,16 @@ namespace AssetBundles
 
             return m_Request != null && m_Request.isDone;
         }
+
+		protected override void OnComplete ()
+		{
+			AssetBundleManager.SubDepend(m_AssetBundleName, m_LevelName);
+		}
+
+		public override void Cancel ()
+		{
+			AssetBundleManager.SubDepend(m_AssetBundleName, m_LevelName);
+		}
     }
 
     public abstract class AssetBundleLoadAssetOperation : AssetBundleLoadOperation
@@ -497,10 +509,10 @@ namespace AssetBundles
 					m_Request = bundle.m_AssetBundle.LoadAssetAsync (m_AssetName, m_Type);
 
 					// Not found specified asset in bundle.
-					if (m_Request == null) {
-						m_DownloadingError = string.Format("There is no asset with name {0}({1}) in {2}", m_AssetName, m_Type.Name, m_AssetBundleName );
-						return false;
-					}
+					if (m_Request == null || m_Request.isDone)
+						m_DownloadingError = string.Format ("There is no asset with name {0}({1}) in {2}", m_AssetName, m_Type.Name, m_AssetBundleName);
+					else
+						AssetBundleManager.AddDepend (m_AssetBundleName, id);
 				}
 			} 
 
@@ -535,6 +547,7 @@ namespace AssetBundles
 
 		protected override void OnComplete ()
 		{
+            AssetBundleManager.SubDepend(m_AssetBundleName, id);
 			Object asset = GetAsset<Object> ();
 
 			// Cache the asset.
@@ -556,6 +569,7 @@ namespace AssetBundles
 
 		public override void Cancel ()
 		{
+			AssetBundleManager.SubDepend(m_AssetBundleName, id);
 		}
     }
 
