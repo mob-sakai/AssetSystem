@@ -373,9 +373,6 @@ namespace AssetBundles
 
         public override bool Update()
         {
-            if (m_Request != null)
-                return false;
-
             LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle(m_AssetBundleName, out m_DownloadingError);
             if (bundle != null)
             {
@@ -387,19 +384,23 @@ namespace AssetBundles
                 else
                     m_Request = Application.LoadLevelAsync(m_LevelName);
 #endif
-                return false;
+				// Not found specified level in bundle.
+				if (m_Request == null || m_Request.isDone)
+				{
+					m_DownloadingError = string.Format("There is no level {0} in {1}", m_LevelName, m_AssetBundleName );
+					Debug.LogError(m_DownloadingError);
+				}
             }
-            else
-                return true;
+
+			return IsDone();
         }
 
         public override bool IsDone()
         {
             // Return if meeting downloading error.
             // m_DownloadingError might come from the dependency downloading.
-            if (m_Request == null && m_DownloadingError != null)
+            if (m_DownloadingError != null)
             {
-                Debug.LogError(m_DownloadingError);
                 return true;
             }
 
