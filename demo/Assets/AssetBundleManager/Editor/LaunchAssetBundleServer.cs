@@ -130,7 +130,7 @@ namespace AssetBundles
 
             for (int i = 0; i < foldersWithApi.Length; i++)
             {
-				foldersWithApi[i] = foldersWithApi[i].Split('\\').Last();
+                foldersWithApi[i] = foldersWithApi[i].Split(Path.DirectorySeparatorChar).Last();
                 foldersWithApi[i] = foldersWithApi[i].Split('-').First();
 
                 if (float.Parse(foldersWithApi[i]) > profileVersion)
