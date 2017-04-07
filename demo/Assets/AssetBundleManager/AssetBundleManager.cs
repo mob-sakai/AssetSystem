@@ -291,16 +291,9 @@ namespace AssetBundles
             var go = new GameObject("AssetBundleManager", typeof(AssetBundleManager));
             DontDestroyOnLoad(go);
 
-#if UNITY_EDITOR
-            // If we're in Editor simulation mode, we don't need the manifest assetBundle.
-            if (SimulateAssetBundleInEditor)
-                return null;
-#endif
+			AssetBundleDownloadOperation.onComplete = OnCompleteAssetBundleDownloadOperation;
 
-            LoadAssetBundle(manifestAssetBundleName, true);
-            var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName, "AssetBundleManifest", typeof(AssetBundleManifest));
-            m_InProgressOperations.Add(operation);
-            return operation;
+			return UpdateManifest (manifestAssetBundleName);
         }
 
         // Temporarily work around a il2cpp bug
@@ -587,17 +580,12 @@ namespace AssetBundles
                 else
                 {
                     m_InProgressOperations.RemoveAt(i);
-                    ProcessFinishedOperation(operation);
                 }
             }
         }
 
-        void ProcessFinishedOperation(AssetBundleLoadOperation operation)
+		static void OnCompleteAssetBundleDownloadOperation(AssetBundleDownloadOperation download)
         {
-            AssetBundleDownloadOperation download = operation as AssetBundleDownloadOperation;
-            if (download == null)
-                return;
-
             if (download.error == null)
                 m_LoadedAssetBundles.Add(download.assetBundleName, download.assetBundle);
             else
@@ -718,6 +706,33 @@ namespace AssetBundles
 			
 			foreach (var bundleName in m_AssetBundleManifest.GetAllAssetBundles())
 				DeleteAssetBundle (bundleName, m_AssetBundleManifest.GetAssetBundleHash(bundleName));
+		}
+		/// <summary>
+		/// Starts download of manifest asset bundle.
+		/// Returns the manifest asset bundle downolad operation object.
+		/// </summary>
+		static public AssetBundleLoadManifestOperation UpdateManifest()
+		{
+			return UpdateManifest(Utility.GetPlatformName());
+		}
+		/// <summary>
+		/// Starts download of manifest asset bundle.
+		/// Returns the manifest asset bundle downolad operation object.
+		/// </summary>
+		/// <param name="manifestAssetBundleName">Manifest asset bundle name.</param>
+		static public AssetBundleLoadManifestOperation UpdateManifest(string manifestAssetBundleName)
+		{
+			#if UNITY_EDITOR
+			// If we're in Editor simulation mode, we don't need the manifest assetBundle.
+			if (SimulateAssetBundleInEditor)
+				return null;
+			#endif
+
+			LoadAssetBundle(manifestAssetBundleName, true);
+			var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName);
+			operation.onComplete += obj => m_AssetBundleManifest = obj as AssetBundleManifest;
+			m_InProgressOperations.Add(operation);
+			return operation;
 		}
     } // End of AssetBundleManager.
 }

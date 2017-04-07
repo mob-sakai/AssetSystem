@@ -34,10 +34,16 @@ namespace AssetBundles
         abstract public bool Update();
 
         abstract public bool IsDone();
+
+		protected virtual void OnComplete(){}
+
+		public virtual void Cancel(){}
     }
 
     public abstract class AssetBundleDownloadOperation : AssetBundleLoadOperation
     {
+		public static System.Action<AssetBundleDownloadOperation> onComplete;
+
         bool done;
 
         public string assetBundleName { get; private set; }
@@ -45,13 +51,12 @@ namespace AssetBundles
         public string error { get; protected set; }
 
         protected abstract bool downloadIsDone { get; }
-        protected abstract void FinishDownload();
 
         public override bool Update()
         {
             if (!done && downloadIsDone)
             {
-                FinishDownload();
+				OnComplete();
                 done = true;
             }
 
@@ -62,6 +67,12 @@ namespace AssetBundles
         {
             return done;
         }
+
+		protected override void OnComplete ()
+		{
+			if(onComplete != null)
+				onComplete(this);
+		}
 
         public abstract string GetSourceURL();
 
@@ -93,7 +104,7 @@ namespace AssetBundles
             return "odr://" + assetBundleName;
         }
 
-        protected override void FinishDownload()
+		protected override void OnComplete()
         {
             error = request.error;
             if (error != null)
@@ -123,8 +134,19 @@ namespace AssetBundles
             }
 
             request = null;
+
+			base.onComplete(this);
         }
-    }
+
+		public override void Cancel ()
+		{
+			if (request != null)
+			{
+				request.Dispose ();
+				request = null;
+			}
+		}
+	}
 #endif
 
 #if ENABLE_IOS_APP_SLICING
@@ -147,8 +169,6 @@ namespace AssetBundles
         }
 
         protected override bool downloadIsDone { get { return true; } }
-
-        protected override void FinishDownload() {}
 
         public override string GetSourceURL()
         {
@@ -173,7 +193,7 @@ namespace AssetBundles
 
         protected override bool downloadIsDone { get { return (m_WWW == null) || m_WWW.isDone; } }
 
-        protected override void FinishDownload()
+		protected override void OnComplete()
         {
             error = m_WWW.error;
             if (!string.IsNullOrEmpty(error))
@@ -187,7 +207,18 @@ namespace AssetBundles
 
             m_WWW.Dispose();
             m_WWW = null;
+
+			base.OnComplete ();
         }
+
+		public override void Cancel ()
+		{
+			if (m_WWW != null)
+			{
+				m_WWW.Dispose ();
+				m_WWW = null;
+			}
+		}
 
         public override string GetSourceURL()
         {
@@ -214,7 +245,7 @@ namespace AssetBundles
 
         protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
 
-        protected override void FinishDownload()
+		protected override void OnComplete()
         {
             error = m_request.error;
             if (!string.IsNullOrEmpty(error))
@@ -230,7 +261,21 @@ namespace AssetBundles
             m_request.Dispose();
             m_request = null;
             m_Operation = null;
+
+			base.OnComplete ();
         }
+
+		public override void Cancel ()
+		{
+			if (m_request != null)
+			{
+				if (m_request.isDone)
+					m_request.Abort ();
+				m_request.Dispose ();
+				m_request = null;
+			}
+			m_Operation = null;
+		}
 
         public override string GetSourceURL()
         {
@@ -252,7 +297,7 @@ namespace AssetBundles
 
         protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
 
-        protected override void FinishDownload()
+		protected override void OnComplete()
         {
             AssetBundle bundle = m_Operation.assetBundle;
             if (bundle == null) {
@@ -284,7 +329,7 @@ namespace AssetBundles
             string[] levelPaths = UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(assetBundleName, levelName);
             if (levelPaths.Length == 0)
             {
-                ///@TODO: The error needs to differentiate that an asset bundle name doesn't exist
+                // TODO: The error needs to differentiate that an asset bundle name doesn't exist
                 //        from that there right scene does not exist in the asset bundle...
 
                 Debug.LogError("There is no scene with name \"" + levelName + "\" in " + assetBundleName);
@@ -392,44 +437,65 @@ namespace AssetBundles
 
     public class AssetBundleLoadAssetOperationFull : AssetBundleLoadAssetOperation
     {
+		protected LoadedAssetBundle     m_LoadedAssetBundle;
         protected string                m_AssetBundleName;
         protected string                m_AssetName;
         protected string                m_DownloadingError;
         protected System.Type           m_Type;
         protected AssetBundleRequest    m_Request = null;
 
+		/// <summary>Load asset complete callback.</summary>
+		public System.Action<UnityEngine.Object> onComplete;
+
+		/// <summary>Operation identifier.</summary>
+		public string id { get; protected set; }
+
+		public static string GetId(string bundleName, string assetName, System.Type type)
+		{
+			return string.Format ("{0}.{1}.{2}", bundleName, assetName, type.Name);
+		}
+
         public AssetBundleLoadAssetOperationFull(string bundleName, string assetName, System.Type type)
         {
             m_AssetBundleName = bundleName;
             m_AssetName = assetName;
             m_Type = type;
+			id = GetId( bundleName, assetName, type);
         }
 
         public override T GetAsset<T>()
-        {
-            if (m_Request != null && m_Request.isDone)
-                return m_Request.asset as T;
-            else
-                return null;
+		{
+
+			// Loading request has done.
+			if (m_Request != null && m_Request.isDone) {
+				return m_Request.asset as T;
+			}
+			
+			return null;
         }
 
         // Returns true if more Update calls are required.
         public override bool Update()
-        {
-            if (m_Request != null)
-                return false;
+		{
+			if (m_Request == null) {
+				m_LoadedAssetBundle = AssetBundleManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
+				if (m_LoadedAssetBundle != null) {
+					// TODO: When asset bundle download fails this throws an exception...
+					m_Request = m_LoadedAssetBundle.m_AssetBundle.LoadAssetAsync (m_AssetName, m_Type);
 
-            LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle(m_AssetBundleName, out m_DownloadingError);
-            if (bundle != null)
-            {
-                ///@TODO: When asset bundle download fails this throws an exception...
-                m_Request = bundle.m_AssetBundle.LoadAssetAsync(m_AssetName, m_Type);
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+					// Not found specified asset in bundle.
+					if (m_Request == null) {
+						m_DownloadingError = string.Format("There is no asset with name {0}({1}) in {2}", m_AssetName, m_Type.Name, m_AssetBundleName );
+						return false;
+					}
+				}
+			} 
+			// Load complete.
+			else if(m_Request.isDone) {
+				OnComplete ();
+			}
+
+			return !IsDone ();
         }
 
         public override bool IsDone()
@@ -444,26 +510,35 @@ namespace AssetBundles
 
             return m_Request != null && m_Request.isDone;
         }
+
+		protected override void OnComplete ()
+		{
+			// Cache loaded asset.
+			UnityEngine.Object asset = GetAsset<UnityEngine.Object> ();
+
+			if (onComplete == null)
+				return;
+
+			foreach (System.Action<UnityEngine.Object> action in onComplete.GetInvocationList()) {
+				try{
+					action (asset);
+				}catch(System.Exception ex){
+					Debug.LogException(ex);
+				}
+			}
+			onComplete = null;
+		}
+
+		public override void Cancel ()
+		{
+		}
     }
 
     public class AssetBundleLoadManifestOperation : AssetBundleLoadAssetOperationFull
     {
-        public AssetBundleLoadManifestOperation(string bundleName, string assetName, System.Type type)
-            : base(bundleName, assetName, type)
+        public AssetBundleLoadManifestOperation(string bundleName)
+			: base(bundleName, "AssetBundleManifest", typeof(AssetBundleManifest))
         {
-        }
-
-        public override bool Update()
-        {
-            base.Update();
-
-            if (m_Request != null && m_Request.isDone)
-            {
-                AssetBundleManager.AssetBundleManifestObject = GetAsset<AssetBundleManifest>();
-                return false;
-            }
-            else
-                return true;
         }
     }
 }
