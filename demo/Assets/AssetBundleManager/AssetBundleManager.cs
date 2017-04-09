@@ -83,6 +83,12 @@ namespace AssetBundles
 		static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>> ();
 		static HashSet<string> m_Unloadable = new HashSet<string> ();
 
+		/// <summary>
+		/// Gets the in progress operations.
+		/// </summary>
+		public static List<AssetBundleLoadOperation> InProgressOperations { get { return m_InProgressOperations; } }
+
+
         public static LogMode logMode
         {
             get { return m_LogMode; }
@@ -122,6 +128,7 @@ namespace AssetBundles
         /// </summary>
         public static AssetBundleManifest AssetBundleManifestObject
         {
+			get {return m_AssetBundleManifest; }
             set {m_AssetBundleManifest = value; }
         }
 
