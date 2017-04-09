@@ -51,6 +51,7 @@ namespace AssetBundles
         public string assetBundleName { get; private set; }
         public LoadedAssetBundle assetBundle { get; protected set; }
         public string error { get; protected set; }
+		public float progress { get; protected set; }
 
         protected abstract bool downloadIsDone { get; }
 
@@ -72,8 +73,15 @@ namespace AssetBundles
 
 		protected override void OnComplete ()
 		{
+			progress = 1f;
 			if(onComplete != null)
 				onComplete(this);
+		}
+
+		public override void Cancel ()
+		{
+			progress = 1f;
+			error = "operation has been canceled";
 		}
 
         public abstract string GetSourceURL();
@@ -147,6 +155,7 @@ namespace AssetBundles
 				request.Dispose ();
 				request = null;
 			}
+			base.Cancel ();
 		}
 	}
 #endif
@@ -195,6 +204,14 @@ namespace AssetBundles
 
         protected override bool downloadIsDone { get { return (m_WWW == null) || m_WWW.isDone; } }
 
+		public override bool Update ()
+		{
+			if (m_WWW != null && !m_WWW.isDone)
+				progress = m_WWW.progress;
+			
+			return base.Update ();
+		}
+
 		protected override void OnComplete()
         {
             error = m_WWW.error;
@@ -220,6 +237,7 @@ namespace AssetBundles
 				m_WWW.Dispose ();
 				m_WWW = null;
 			}
+			base.Cancel ();
 		}
 
         public override string GetSourceURL()
@@ -246,6 +264,14 @@ namespace AssetBundles
         }
 
         protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
+
+		public override bool Update ()
+		{
+			if (m_request != null && !m_request.isDone)
+				progress = m_request.downloadProgress;
+			
+			return base.Update ();
+		}
 
 		protected override void OnComplete()
         {
@@ -277,6 +303,7 @@ namespace AssetBundles
 				m_request = null;
 			}
 			m_Operation = null;
+			base.Cancel ();
 		}
 
         public override string GetSourceURL()
@@ -298,6 +325,14 @@ namespace AssetBundles
         }
 
         protected override bool downloadIsDone { get { return (m_Operation == null) || m_Operation.isDone; } }
+
+		public override bool Update ()
+		{
+			if (m_Operation != null && !m_Operation.isDone)
+				progress = m_Operation.progress;
+			
+			return base.Update ();
+		}
 
 		protected override void OnComplete()
         {
