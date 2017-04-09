@@ -408,7 +408,7 @@ namespace AssetBundles
 
         public override bool Update()
         {
-            LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle(m_AssetBundleName, out m_DownloadingError);
+            LoadedAssetBundle bundle = AssetManager.GetLoadedAssetBundle(m_AssetBundleName, out m_DownloadingError);
             if (bundle != null)
             {
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
@@ -426,7 +426,7 @@ namespace AssetBundles
 					Debug.LogError(m_DownloadingError);
 				}
 				else
-					AssetBundleManager.AddDepend(m_AssetBundleName, m_LevelName);
+					AssetManager.AddDepend(m_AssetBundleName, m_LevelName);
             }
 
 			return IsDone();
@@ -446,12 +446,12 @@ namespace AssetBundles
 
 		protected override void OnComplete ()
 		{
-			AssetBundleManager.SubDepend(m_AssetBundleName, m_LevelName);
+			AssetManager.SubDepend(m_AssetBundleName, m_LevelName);
 		}
 
 		public override void Cancel ()
 		{
-			AssetBundleManager.SubDepend(m_AssetBundleName, m_LevelName);
+			AssetManager.SubDepend(m_AssetBundleName, m_LevelName);
 		}
     }
 
@@ -538,7 +538,7 @@ namespace AssetBundles
 				return false;
 			
 			if (m_Request == null) {
-				LoadedAssetBundle bundle = AssetBundleManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
+				LoadedAssetBundle bundle = AssetManager.GetLoadedAssetBundle (m_AssetBundleName, out m_DownloadingError);
 				if (bundle != null) {
 					// TODO: When asset bundle download fails this throws an exception...
 					m_Request = bundle.m_AssetBundle.LoadAssetAsync (m_AssetName, m_Type);
@@ -547,7 +547,7 @@ namespace AssetBundles
 					if (m_Request == null || m_Request.isDone)
 						m_DownloadingError = string.Format ("There is no asset with name {0}({1}) in {2}", m_AssetName, m_Type.Name, m_AssetBundleName);
 					else
-						AssetBundleManager.AddDepend (m_AssetBundleName, id);
+						AssetManager.AddDepend (m_AssetBundleName, id);
 				}
 			} 
 
@@ -582,7 +582,7 @@ namespace AssetBundles
 
 		protected override void OnComplete ()
 		{
-            AssetBundleManager.SubDepend(m_AssetBundleName, id);
+            AssetManager.SubDepend(m_AssetBundleName, id);
 			Object asset = GetAsset<Object> ();
 
 			// Cache the asset.
@@ -604,7 +604,7 @@ namespace AssetBundles
 
 		public override void Cancel ()
 		{
-			AssetBundleManager.SubDepend(m_AssetBundleName, id);
+			AssetManager.SubDepend(m_AssetBundleName, id);
 		}
     }
 

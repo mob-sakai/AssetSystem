@@ -58,7 +58,7 @@ namespace AssetBundles
     /// Class takes care of loading assetBundle and its dependencies
     /// automatically, loading variants automatically.
     /// </summary>
-    public class AssetBundleManager : MonoBehaviour
+    public class AssetManager : MonoBehaviour
     {
         public enum LogMode { All, JustErrors };
         public enum LogType { Info, Warning, Error };
@@ -229,7 +229,7 @@ namespace AssetBundles
             }
             else
             {
-                AssetBundleManager.SetSourceAssetBundleURL(url);
+                AssetManager.SetSourceAssetBundleURL(url);
             }
         }
 
@@ -296,7 +296,7 @@ namespace AssetBundles
             Log(LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
 #endif
 
-            var go = new GameObject("AssetBundleManager", typeof(AssetBundleManager));
+            var go = new GameObject("AssetBundleManager", typeof(AssetManager));
             DontDestroyOnLoad(go);
 
 			AssetBundleDownloadOperation.onComplete = OnCompleteAssetBundleDownloadOperation;
@@ -326,7 +326,7 @@ namespace AssetBundles
             {
                 if (m_AssetBundleManifest == null)
                 {
-                    Log(LogType.Error, "Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
+                    Log(LogType.Error, "Please initialize AssetBundleManifest by calling AssetManager.Initialize()");
                     return;
                 }
             }
@@ -561,7 +561,7 @@ namespace AssetBundles
         {
             if (m_AssetBundleManifest == null)
             {
-                Log(LogType.Error, "Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
+                Log(LogType.Error, "Please initialize AssetBundleManifest by calling AssetManager.Initialize()");
                 return;
             }
 
@@ -771,7 +771,7 @@ namespace AssetBundles
 		{
 			if (!m_AssetBundleManifest)
 			{
-				Debug.LogError ("Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
+				Debug.LogError ("Please initialize AssetBundleManifest by calling AssetManager.Initialize()");
 				return;
 			}
 
@@ -884,7 +884,7 @@ namespace AssetBundles
 			System.Text.StringBuilder sb = new System.Text.StringBuilder ();
 
 			sb.AppendFormat ("[{0} Report] manifestHash:{1}, spaceOccupied:{2}, RuntimeCached:{3}, LoadedBundles:{4}, InProgress:{5}, DownloadingBundles:{6}\n",
-				typeof(AssetBundleManager).Name,
+				typeof(AssetManager).Name,
 				m_ManifestHash,
 				Caching.spaceOccupied,
 				m_RuntimeCache.Count,
@@ -927,5 +927,5 @@ namespace AssetBundles
 			return sb;
 		}
 
-    } // End of AssetBundleManager.
+    } // End of AssetManager.
 }
