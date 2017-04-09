@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections;
 using AssetBundles;
 using System.Linq;
+using System.Collections.Generic;
 
 public class Test : MonoBehaviour
 {
@@ -17,6 +18,7 @@ public class Test : MonoBehaviour
 	public RawImage image;
 
 	public Text m_Log;
+	public Text m_Progress;
 
 	void Update()
 	{
@@ -60,6 +62,31 @@ public class Test : MonoBehaviour
 
 	public void LoadAll()
 	{
+		StartCoroutine (CoLoadAll());
+
+//
+//		string baseUrl = AssetBundleManager.BaseDownloadingURL;
+//
+//		var manifest = AssetBundleManager.AssetBundleManifestObject;
+//		foreach (var name in manifest.GetAllAssetBundles()) {
+//			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
+//			if (!Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
+//				AssetBundleManager.LoadAssetBundle (name);
+//			}
+//
+//
+//		}
+//
+//		// download operation.
+//		AssetBundleManager.InProgressOperations
+//			.OfType<AssetBundleDownloadOperation> ()
+//			.Sum (op => op.progress);
+//
+
+	}
+
+	IEnumerator CoLoadAll()
+	{
 		string baseUrl = AssetBundleManager.BaseDownloadingURL;
 
 		var manifest = AssetBundleManager.AssetBundleManifestObject;
@@ -69,6 +96,24 @@ public class Test : MonoBehaviour
 				AssetBundleManager.LoadAssetBundle (name);
 			}
 		}
+
+		// download operation.
+		List<AssetBundleDownloadOperation> downloads = AssetBundleManager.InProgressOperations
+			.OfType<AssetBundleDownloadOperation> ()
+			.ToList();
+
+		// wait for finish.
+		int count = downloads.Count;
+		while(downloads.Any(x=>!x.IsDone()))
+		{
+			yield return null;
+			float progress = downloads.Where (x => string.IsNullOrEmpty (x.error)).Sum (x=>x.progress);
+			int succeed = downloads.Count (x => x.IsDone () && string.IsNullOrEmpty (x.error));
+			m_Progress.text = string.Format ("{0}/{1} {2:P1}%", succeed, count, progress/count);
+		}
+
+
+		yield break;
 	}
 
 
