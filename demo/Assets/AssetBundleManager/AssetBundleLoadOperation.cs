@@ -557,7 +557,7 @@ namespace AssetBundles
 			}
 
 			// Load complete.
-			if(m_Request.isDone) {
+			if(m_Request != null && m_Request.isDone) {
 				OnComplete ();
 			}
 
