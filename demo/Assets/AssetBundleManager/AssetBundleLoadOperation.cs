@@ -297,7 +297,7 @@ namespace AssetBundles
 		{
 			if (m_request != null)
 			{
-				if (m_request.isDone)
+				if (!m_request.isDone)
 					m_request.Abort ();
 				m_request.Dispose ();
 				m_request = null;
