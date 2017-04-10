@@ -37,9 +37,9 @@ namespace AssetBundles
 
         abstract public bool IsDone();
 
-		protected virtual void OnComplete(){}
+		public virtual void OnComplete(){}
 
-		public virtual void Cancel(){}
+		public virtual void OnCancel(){}
     }
 
     public abstract class AssetBundleDownloadOperation : AssetBundleLoadOperation
@@ -59,7 +59,6 @@ namespace AssetBundles
         {
             if (!done && downloadIsDone)
             {
-				OnComplete();
                 done = true;
             }
 
@@ -71,14 +70,14 @@ namespace AssetBundles
             return done;
         }
 
-		protected override void OnComplete ()
+		public override void OnComplete ()
 		{
 			progress = 1f;
 			if(onComplete != null)
 				onComplete(this);
 		}
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			progress = 1f;
 			error = "operation has been canceled";
@@ -114,7 +113,7 @@ namespace AssetBundles
             return "odr://" + assetBundleName;
         }
 
-		protected override void OnComplete()
+		public override void OnComplete()
         {
             error = request.error;
             if (error != null)
@@ -145,17 +144,17 @@ namespace AssetBundles
 
             request = null;
 
-			base.onComplete(this);
+			base.OnComplete();
         }
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			if (request != null)
 			{
 				request.Dispose ();
 				request = null;
 			}
-			base.Cancel ();
+			base.OnCancel ();
 		}
 	}
 #endif
@@ -212,7 +211,7 @@ namespace AssetBundles
 			return base.Update ();
 		}
 
-		protected override void OnComplete()
+		public override void OnComplete()
         {
             error = m_WWW.error;
             if (!string.IsNullOrEmpty(error))
@@ -230,14 +229,14 @@ namespace AssetBundles
 			base.OnComplete ();
         }
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			if (m_WWW != null)
 			{
 				m_WWW.Dispose ();
 				m_WWW = null;
 			}
-			base.Cancel ();
+			base.OnCancel ();
 		}
 
         public override string GetSourceURL()
@@ -273,7 +272,7 @@ namespace AssetBundles
 			return base.Update ();
 		}
 
-		protected override void OnComplete()
+		public override void OnComplete()
         {
             error = m_request.error;
             if (!string.IsNullOrEmpty(error))
@@ -293,7 +292,7 @@ namespace AssetBundles
 			base.OnComplete ();
         }
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			if (m_request != null)
 			{
@@ -303,7 +302,7 @@ namespace AssetBundles
 				m_request = null;
 			}
 			m_Operation = null;
-			base.Cancel ();
+			base.OnCancel ();
 		}
 
         public override string GetSourceURL()
@@ -334,7 +333,7 @@ namespace AssetBundles
 			return base.Update ();
 		}
 
-		protected override void OnComplete()
+		public override void OnComplete()
         {
             AssetBundle bundle = m_Operation.assetBundle;
             if (bundle == null) {
@@ -347,6 +346,8 @@ namespace AssetBundles
             else
                 assetBundle = new LoadedAssetBundle(bundle);
             m_Operation = null;
+
+			base.OnComplete ();
         }
 
         public override string GetSourceURL()
@@ -444,12 +445,12 @@ namespace AssetBundles
             return m_Request != null && m_Request.isDone;
         }
 
-		protected override void OnComplete ()
+		public override void OnComplete ()
 		{
 			AssetManager.SubDepend(m_AssetBundleName, m_LevelName);
 		}
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			AssetManager.SubDepend(m_AssetBundleName, m_LevelName);
 		}
@@ -556,11 +557,6 @@ namespace AssetBundles
 				Debug.LogError(m_DownloadingError);
 			}
 
-			// Load complete.
-			if(m_Request != null && m_Request.isDone) {
-				OnComplete ();
-			}
-
 			return !IsDone ();
         }
 
@@ -580,7 +576,7 @@ namespace AssetBundles
             return m_Request != null && m_Request.isDone;
         }
 
-		protected override void OnComplete ()
+		public override void OnComplete ()
 		{
             AssetManager.SubDepend(m_AssetBundleName, id);
 			Object asset = GetAsset<Object> ();
@@ -602,7 +598,7 @@ namespace AssetBundles
 			onComplete = null;
 		}
 
-		public override void Cancel ()
+		public override void OnCancel ()
 		{
 			AssetManager.SubDepend(m_AssetBundleName, id);
 		}

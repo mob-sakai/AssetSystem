@@ -638,6 +638,7 @@ namespace AssetBundles
                 else
                 {
                     m_InProgressOperations.RemoveAt(i);
+					operation.OnComplete ();
                 }
             }
 
@@ -863,7 +864,7 @@ namespace AssetBundles
 
 			m_DownloadingErrors.Clear ();
 			m_RuntimeCache.Clear ();
-			m_InProgressOperations.ForEach (op => op.Cancel());
+			m_InProgressOperations.ForEach (op => op.OnCancel());
 			m_InProgressOperations.Clear ();
 			foreach(var assetBundleName in new List<string>(m_LoadedAssetBundles.Keys))
 				UnloadAssetBundleInternal (assetBundleName);
