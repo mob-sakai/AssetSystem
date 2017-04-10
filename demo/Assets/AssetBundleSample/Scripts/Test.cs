@@ -119,7 +119,9 @@ public class Test : MonoBehaviour
 
 	public void Load()
 	{
-		StartCoroutine (CoLoad());
+		AssetManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+
+//		StartCoroutine (CoLoad());
 //		AssetManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
 	}
 
@@ -129,6 +131,15 @@ public class Test : MonoBehaviour
 
 		yield return StartCoroutine (op);
 		image.texture = op.GetAsset<Texture2D> ();
+	}
+
+	public void LoadFromResources()
+	{
+		AssetManager.LoadAssetAsync<Texture2D> (assetName, img => image.texture = img);
+	}
+
+	public void LoadFromWeb()
+	{
 	}
 
 	public void ClearAll()
