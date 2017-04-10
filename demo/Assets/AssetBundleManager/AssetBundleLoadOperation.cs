@@ -611,4 +611,153 @@ namespace AssetBundles
         {
         }
     }
+
+
+	public class LoadAssetOperation : AssetBundleLoadAssetOperationFull
+	{
+		protected ResourceRequest    m_ResourceRequest = null;
+
+		public LoadAssetOperation(string assetName, System.Type type, Dictionary<string, Object> runtimeCache)
+			: base(null, assetName, type, runtimeCache)
+		{
+			id = GetId (assetName, type);
+		}
+
+		new public static string GetId(string assetName, System.Type type)
+		{
+			return string.Format ("{0}.{1}", assetName, type.Name);
+		}
+
+		public override T GetAsset<T> ()
+		{
+			if (m_ResourceRequest != null && m_ResourceRequest.isDone)
+			{
+				return m_ResourceRequest.asset as T;
+			}
+			return base.GetAsset<T> ();
+		}
+
+		// Returns true if more Update calls are required.
+		public override bool Update()
+		{
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return false;
+
+			if (m_ResourceRequest == null) {
+				m_ResourceRequest = Resources.LoadAsync (m_AssetName, m_Type);
+
+				// Not found specified asset.
+				if (m_ResourceRequest == null || m_ResourceRequest.isDone)
+					m_DownloadingError = string.Format ("There is no asset with name {0}({1}) in Resources.", m_AssetName, m_Type.Name);
+			} 
+
+			// Loading error has occered.
+			if (m_DownloadingError != null) {
+				Debug.LogError(m_DownloadingError);
+			}
+
+			return !IsDone ();
+		}
+
+		public override bool IsDone()
+		{
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return true;
+
+			// Return if meeting downloading error.
+			// m_DownloadingError might come from the dependency downloading.
+			if (m_DownloadingError != null)
+			{
+				return true;
+			}
+
+			return m_ResourceRequest != null && m_ResourceRequest.isDone;
+		}
+	}
+
+	public class LoadAssetWebRequestOperation : AssetBundleLoadAssetOperationFull
+	{
+		UnityWebRequest m_WebRequest;
+		AsyncOperation m_Operation;
+		string m_Url;
+		System.Func<DownloadHandler, Object> m_AssetSelector;
+		Object asset;
+
+		public LoadAssetWebRequestOperation(string url, UnityWebRequest request, System.Type type, Dictionary<string, Object> runtimeCache, System.Func<DownloadHandler, Object> assetSelector)
+			: base(null, url, type, runtimeCache)
+		{
+
+			if (request == null || request.downloadHandler == null)
+				throw new System.ArgumentNullException("request");
+			m_Url = request.url;
+			m_WebRequest = request;
+			m_Operation = request.Send();
+			m_AssetSelector = assetSelector;
+
+			id = LoadAssetOperation.GetId (url, type);
+		}
+
+
+		public override T GetAsset<T>()
+		{
+			// Operation has been cached.
+			Object obj = null;
+			if (m_RuntimeCache != null && m_RuntimeCache.TryGetValue (id, out obj)) {
+				return obj as T;
+			}
+
+			return asset as T;
+		}
+
+		public override bool Update()
+		{
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return false;
+			
+			if (m_Operation != null && m_Operation.isDone)
+			{
+				if (m_WebRequest.isError)
+					Debug.LogErrorFormat ("An error has occurred during loading asset from {0}: {1}",m_Url, m_WebRequest.error);
+			}
+
+			return !IsDone();
+		}
+
+		public override bool IsDone ()
+		{
+			// Operation has been cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return true;
+			
+			return m_Operation != null && m_Operation.isDone;
+		}
+
+		public override void OnComplete()
+		{
+			asset = m_AssetSelector(m_WebRequest.downloadHandler);
+			if (asset)
+				m_RuntimeCache [id] = asset;
+
+			m_WebRequest.Dispose();
+			m_WebRequest = null;
+			m_Operation = null;
+			base.OnComplete ();
+		}
+
+		public override void OnCancel ()
+		{
+			if (m_WebRequest != null)
+			{
+				if (!m_WebRequest.isDone)
+					m_WebRequest.Abort ();
+				m_WebRequest.Dispose ();
+				m_WebRequest = null;
+			}
+			m_Operation = null;
+			base.OnCancel ();
+		}
+	}
 }

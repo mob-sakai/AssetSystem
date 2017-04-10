@@ -427,6 +427,9 @@ namespace AssetBundles
 
 		public static void AddDepend(string assetBundleName, string dependedId)
 		{
+			if (string.IsNullOrEmpty (assetBundleName))
+				return;
+			
 			HashSet<string> depended;
 			if(!m_Depended.TryGetValue(assetBundleName, out depended))
 			{
@@ -448,6 +451,9 @@ namespace AssetBundles
 
 		public static void SubDepend(string assetBundleName, string dependedId)
 		{
+			if (string.IsNullOrEmpty (assetBundleName))
+				return;
+			
 			HashSet<string> depended;
 			if(m_Depended.TryGetValue(assetBundleName, out depended))
 			{
@@ -763,6 +769,58 @@ namespace AssetBundles
 
             return operation;
         }
+
+		/// <summary>
+		/// Starts a load operation for an asset from Resources.
+		/// </summary>
+		static public AssetBundleLoadAssetOperationFull LoadAssetAsync<T>(string assetName, System.Action<T> onLoad = null) where T:UnityEngine.Object
+		{
+			if(onLoad != null)
+				return LoadAssetAsync (assetName, typeof(T), obj => onLoad (obj as T));
+			else
+				return LoadAssetAsync (assetName, typeof(T));
+		}
+
+		/// <summary>
+		/// Starts a load operation for an asset from Resources.
+		/// </summary>
+		static public AssetBundleLoadAssetOperationFull LoadAssetAsync(string assetName, System.Type type, System.Action<UnityEngine.Object> onLoad = null)
+		{
+			string operationId = LoadAssetOperation.GetId (assetName, type);
+			Log(LogType.Info, "Loading " + assetName + ", " + operationId);
+
+			// Search same operation in progress to merge load complete callbacks.
+			AssetBundleLoadAssetOperationFull operation = null;
+			foreach (var progressOperation in m_InProgressOperations) {
+				var op = progressOperation as AssetBundleLoadAssetOperationFull;
+				if (op != null && op.id == operationId) {
+					operation = op;
+					break;
+				}
+			}
+
+			// When no same operation in progress, create new operation.
+			if(operation == null)
+			{
+				// Asset is in Web or StreamingAssets.
+				if (assetName.Contains ("://"))
+				{
+					operation = new LoadAssetWebRequestOperation(assetName, UnityWebRequest.GetTexture(assetName, true), type, m_RuntimeCache,
+						dl =>(dl as DownloadHandlerTexture).texture);
+				}
+				else
+					operation = new LoadAssetOperation(assetName, type, m_RuntimeCache);
+
+				m_InProgressOperations.Add(operation);
+			}
+
+			// Add load complete callback.
+			if (onLoad != null) {
+				operation.onComplete += onLoad;
+			}
+
+			return operation;
+		}
 
 		/// <summary>
 		/// Delete cached asset bundle.
