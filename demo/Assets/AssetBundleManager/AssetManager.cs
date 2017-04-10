@@ -920,13 +920,9 @@ namespace AssetBundles
 				return null;
 			#endif
 
-			m_DownloadingErrors.Clear ();
-			m_RuntimeCache.Clear ();
-			m_InProgressOperations.ForEach (op => op.OnCancel());
-			m_InProgressOperations.Clear ();
-			foreach(var assetBundleName in new List<string>(m_LoadedAssetBundles.Keys))
-				UnloadAssetBundleInternal (assetBundleName);
-			m_LoadedAssetBundles.Clear ();
+			ClearRuntimeCacheAll ();
+			CancelOperationsAll ();
+			UnloadAssetbundlesAll ();
 
 			LoadAssetBundle(manifestAssetBundleName, true);
 			var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName);
@@ -986,5 +982,33 @@ namespace AssetBundles
 			return sb;
 		}
 
-    } // End of AssetManager.
+		/// <summary>
+		/// Unloads the assetbundle all.
+		/// </summary>
+		public static void UnloadAssetbundlesAll()
+		{
+			foreach(var assetBundleName in new List<string>(m_LoadedAssetBundles.Keys))
+				UnloadAssetBundleInternal (assetBundleName);
+			m_LoadedAssetBundles.Clear ();
+		}
+
+		/// <summary>
+		/// Clears the runtime cache.
+		/// </summary>
+		public static void ClearRuntimeCacheAll()
+		{
+			m_RuntimeCache.Clear ();
+		}
+
+		/// <summary>
+		/// Clears the operations.
+		/// </summary>
+		public static void CancelOperationsAll()
+		{
+			m_DownloadingErrors.Clear ();
+			m_InProgressOperations.ForEach (op => op.OnCancel());
+			m_InProgressOperations.Clear ();
+		}
+	
+	} // End of AssetManager.
 }
