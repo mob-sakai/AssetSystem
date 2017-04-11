@@ -23,14 +23,14 @@ public class Test : MonoBehaviour
 
 	void Update()
 	{
-		m_Log.text = AssetManager.GenerateReportText ().ToString ();
+		m_Log.text = AssetBundleManager.GenerateReportText ().ToString ();
 	}
 
     // Use this for initialization
 //    IEnumerator Start()
 //    {
-////		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-////		var request = AssetManager.Initialize();
+////		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+////		var request = AssetBundleManager.Initialize();
 ////		if (request != null)
 ////			yield return StartCoroutine(request);
 //
@@ -92,20 +92,20 @@ public class Test : MonoBehaviour
 		StartCoroutine (CoLoadAll());
 
 //
-//		string baseUrl = AssetManager.BaseDownloadingURL;
+//		string baseUrl = AssetBundleManager.BaseDownloadingURL;
 //
-//		var manifest = AssetManager.AssetBundleManifestObject;
+//		var manifest = AssetBundleManager.AssetBundleManifestObject;
 //		foreach (var name in manifest.GetAllAssetBundles()) {
 //			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
 //			if (!Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
-//				AssetManager.LoadAssetBundle (name);
+//				AssetBundleManager.LoadAssetBundle (name);
 //			}
 //
 //
 //		}
 //
 //		// download operation.
-//		AssetManager.InProgressOperations
+//		AssetBundleManager.InProgressOperations
 //			.OfType<AssetBundleDownloadOperation> ()
 //			.Sum (op => op.progress);
 //
@@ -136,7 +136,7 @@ public class Test : MonoBehaviour
 
 	IEnumerator CoLoad()
 	{
-		var op = AssetManager.LoadAssetAsync(assetBundleName, assetName, typeof(Texture2D));
+		var op = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(Texture2D));
 
 		yield return StartCoroutine (op);
 		image.texture = op.GetAsset<Texture2D> ();
@@ -156,7 +156,7 @@ public class Test : MonoBehaviour
 		AssetManager.ClearAll ();
 //		string baseUrl = AssetManager.BaseDownloadingURL;
 //
-//		var manifest = AssetManager.AssetBundleManifestObject;
+//		var manifest = AssetBundleManager.AssetBundleManifestObject;
 //		foreach (var name in manifest.GetAllAssetBundles()) {
 //			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
 //
@@ -173,12 +173,12 @@ public class Test : MonoBehaviour
 	public void Check()
 	{
 		string platform = Utility.GetPlatformName ();
-		string baseUrl = AssetManager.BaseDownloadingURL;
+		string baseUrl = AssetBundleManager.BaseDownloadingURL;
 
 		Debug.LogFormat ("manifest url:{0}, cached:{1}", baseUrl + platform, Caching.IsVersionCached (baseUrl + platform, 0));
 
 
-		var manifest = AssetManager.AssetBundleManifestObject;
+		var manifest = AssetBundleManager.AssetBundleManifestObject;
 		foreach (var name in manifest.GetAllAssetBundles()) {
 			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
 		}
@@ -197,14 +197,14 @@ public class Test : MonoBehaviour
 //    {
 //
 //		/*
-//		AssetManager.SetDevelopmentAssetBundleServer();
+//		AssetBundleManager.SetDevelopmentAssetBundleServer();
 //
 //
 //        // If ODR is available and enabled, then use it and let Xcode handle download requests.
 //        #if ENABLE_IOS_ON_DEMAND_RESOURCES
 //        if (UnityEngine.iOS.OnDemandResources.enabled)
 //        {
-//            AssetManager.SetSourceAssetBundleURL("odr://");
+//            AssetBundleManager.SetSourceAssetBundleURL("odr://");
 //            return;
 //        }
 //        #endif
@@ -212,13 +212,13 @@ public class Test : MonoBehaviour
 //        // With this code, when in-editor or using a development builds: Always use the AssetBundle Server
 //        // (This is very dependent on the production workflow of the project.
 //        //      Another approach would be to make this configurable in the standalone player.)
-//        AssetManager.SetDevelopmentAssetBundleServer();
+//        AssetBundleManager.SetDevelopmentAssetBundleServer();
 //        return;
 //        #else
 //        // Use the following code if AssetBundles are embedded in the project for example via StreamingAssets folder etc:
-//        AssetManager.SetSourceAssetBundleURL(Application.dataPath + "/");
+//        AssetBundleManager.SetSourceAssetBundleURL(Application.dataPath + "/");
 //        // Or customize the URL based on your deployment or configuration
-//        //AssetManager.SetSourceAssetBundleURL("http://www.MyWebsite/MyAssetBundles");
+//        //AssetBundleManager.SetSourceAssetBundleURL("http://www.MyWebsite/MyAssetBundles");
 //        return;
 //        #endif
 //        */
@@ -233,7 +233,7 @@ public class Test : MonoBehaviour
 //        InitializeSourceURL();
 //
 //        // Initialize AssetBundleManifest which loads the AssetBundleManifest object.
-//        var request = AssetManager.Initialize();
+//        var request = AssetBundleManager.Initialize();
 //        if (request != null)
 //            yield return StartCoroutine(request);
 //    }
@@ -244,7 +244,7 @@ public class Test : MonoBehaviour
 //        float startTime = Time.realtimeSinceStartup;
 //
 //        // Load asset from assetBundle.
-//        AssetBundleLoadAssetOperation request = AssetManager.LoadAssetAsync(assetBundleName, assetName, typeof(GameObject));
+//        AssetBundleLoadAssetOperation request = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(GameObject));
 //        if (request == null)
 //            yield break;
 //        yield return StartCoroutine(request);

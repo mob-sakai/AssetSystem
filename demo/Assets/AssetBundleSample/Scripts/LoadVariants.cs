@@ -68,7 +68,7 @@ public class LoadVariants : MonoBehaviour
         yield return StartCoroutine(Initialize());
 
         // Set active variants.
-        AssetManager.ActiveVariants = activeVariants;
+        AssetBundleManager.ActiveVariants = activeVariants;
 
         // Load variant level which depends on variants.
         yield return StartCoroutine(InitializeLevelAsync(variantSceneName, true));
@@ -82,8 +82,8 @@ public class LoadVariants : MonoBehaviour
         #if ENABLE_IOS_ON_DEMAND_RESOURCES
         if (UnityEngine.iOS.OnDemandResources.enabled)
         {
-            AssetManager.overrideBaseDownloadingURL += OverrideDownloadingURLForLocalBundles;
-            AssetManager.SetSourceAssetBundleURL("odr://");
+            AssetBundleManager.overrideBaseDownloadingURL += OverrideDownloadingURLForLocalBundles;
+            AssetBundleManager.SetSourceAssetBundleURL("odr://");
             return;
         }
         #endif
@@ -91,13 +91,13 @@ public class LoadVariants : MonoBehaviour
         // With this code, when in-editor or using a development builds: Always use the AssetBundle Server
         // (This is very dependent on the production workflow of the project.
         //      Another approach would be to make this configurable in the standalone player.)
-        AssetManager.SetDevelopmentAssetBundleServer();
+        AssetBundleManager.SetDevelopmentAssetBundleServer();
         return;
         #else
         // Use the following code if AssetBundles are embedded in the project for example via StreamingAssets folder etc:
-        AssetManager.SetSourceAssetBundleURL(Application.dataPath + "/");
+        AssetBundleManager.SetSourceAssetBundleURL(Application.dataPath + "/");
         // Or customize the URL based on your deployment or configuration
-        //AssetManager.SetSourceAssetBundleURL("http://www.MyWebsite/MyAssetBundles");
+        //AssetBundleManager.SetSourceAssetBundleURL("http://www.MyWebsite/MyAssetBundles");
         return;
         #endif
     }
@@ -137,7 +137,7 @@ public class LoadVariants : MonoBehaviour
         float startTime = Time.realtimeSinceStartup;
 
         // Load level from assetBundle.
-        AssetBundleLoadOperation request = AssetManager.LoadLevelAsync(variantSceneAssetBundle, levelName, isAdditive);
+        AssetBundleLoadOperation request = AssetBundleManager.LoadLevelAsync(variantSceneAssetBundle, levelName, isAdditive);
         if (request == null)
             yield break;
 
