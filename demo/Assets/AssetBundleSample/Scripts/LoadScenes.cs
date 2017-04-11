@@ -53,10 +53,11 @@ public class LoadScenes : MonoBehaviour
         InitializeSourceURL();
 
         // Initialize AssetBundleManifest which loads the AssetBundleManifest object.
-        var request = AssetManager.Initialize();
-
-        if (request != null)
-            yield return StartCoroutine(request);
+//        var request = AssetManager.Initialize();
+//
+//        if (request != null)
+//            yield return StartCoroutine(request);
+		yield break;
     }
 
     protected IEnumerator InitializeLevelAsync(string levelName, bool isAdditive)

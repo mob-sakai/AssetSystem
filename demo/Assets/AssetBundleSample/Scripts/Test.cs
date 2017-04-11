@@ -13,6 +13,7 @@ public class Test : MonoBehaviour
 
 	public string resourceDomain = "https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/";
 	public string resourceVersion = "0cbe0f6edd536caea5cf5651cd4bf922cb9110ac";
+	public string manifestName = "Android";
 
 
 	public RawImage image;
@@ -44,20 +45,46 @@ public class Test : MonoBehaviour
 
 	public void InitializeXXX()
 	{
-		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+		StartCoroutine (CoInitializeXXX());
+
+//		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+//		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+//		AssetManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
 
 //		AssetManager.m_CacheAssetBundleManifest = true;
-		var request = AssetManager.Initialize();
+//		var request = AssetManager.Initialize();
 	}
 
+
+	IEnumerator CoInitializeXXX()
+	{
+		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+		var opUpdateManifest = AssetManager.UpdateManifest(manifestName, Hash128.Parse (resourceVersion));
+
+		yield return StartCoroutine (opUpdateManifest);
+		if (!string.IsNullOrEmpty (opUpdateManifest.error))
+		{
+			Debug.LogError ("CoInitializeXXX is failed. Please try again.");
+			yield break;
+		}
+
+		var op = AssetManager.PreloadAssetBundle ();
+
+		// wait for finish.
+		while(!op.isDone)
+		{
+			yield return null;
+			m_Progress.text = string.Format ("{0:P1}, error:{1}%", op.progress, op.error);
+		}
+		yield break;
+	}
 
 	public void UpdateManifest()
 	{
 //		AssetManager.m_RuntimeCache.Clear ();
 		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
-		AssetManager.UpdateManifest();
+//		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+		AssetManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
 	}
 
 	public void LoadAll()
@@ -87,32 +114,14 @@ public class Test : MonoBehaviour
 
 	IEnumerator CoLoadAll()
 	{
-		string baseUrl = AssetManager.BaseDownloadingURL;
-
-		var manifest = AssetManager.AssetBundleManifestObject;
-		foreach (var name in manifest.GetAllAssetBundles()) {
-			Debug.LogFormat ("url:{0}, hash:{1}, cached:{2}", baseUrl + name, manifest.GetAssetBundleHash (name), Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name)));
-			if (!Caching.IsVersionCached (baseUrl + name, manifest.GetAssetBundleHash (name))) {
-				AssetManager.LoadAssetBundle (name);
-			}
-		}
-
-		// download operation.
-		List<AssetBundleDownloadOperation> downloads = AssetManager.InProgressOperations
-			.OfType<AssetBundleDownloadOperation> ()
-			.ToList();
+		var op = AssetManager.PreloadAssetBundle ();
 
 		// wait for finish.
-		int count = downloads.Count;
-		while(downloads.Any(x=>!x.IsDone()))
+		while(!op.isDone)
 		{
 			yield return null;
-			float progress = downloads.Where (x => string.IsNullOrEmpty (x.error)).Sum (x=>x.progress);
-			int succeed = downloads.Count (x => x.IsDone () && string.IsNullOrEmpty (x.error));
-			m_Progress.text = string.Format ("{0}/{1} {2:P1}%", succeed, count, progress/count);
+			m_Progress.text = string.Format ("{0:P1}, error:{1}%", op.progress, op.error);
 		}
-
-
 		yield break;
 	}
 
@@ -144,7 +153,7 @@ public class Test : MonoBehaviour
 
 	public void ClearAll()
 	{
-		AssetManager.DeleteAssetBundleAll ();
+		AssetManager.ClearAll ();
 //		string baseUrl = AssetManager.BaseDownloadingURL;
 //
 //		var manifest = AssetManager.AssetBundleManifestObject;
