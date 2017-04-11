@@ -282,19 +282,19 @@ namespace AssetBundles
 		/// シングルトンインスタンスを取得します.
 		/// シーン上にインスタンスが存在しない場合、自動的に生成されます.
 		/// </summary>
-		public static AssetManager instance
+		public static AssetBundleManager instance
 		{
 			get
 			{
 				if (_instance == null)
 				{
 					//シーン内のインスタンスを検索します.
-					_instance = GameObject.FindObjectOfType<AssetManager>();
+					_instance = GameObject.FindObjectOfType<AssetBundleManager>();
 
 					//シーン内にインスタンスが存在しない場合、自動的に生成します.
 					if (_instance == null)
 					{
-						_instance = new GameObject(typeof(AssetManager).Name).AddComponent<AssetManager>();
+						_instance = new GameObject(typeof(AssetBundleManager).Name).AddComponent<AssetBundleManager>();
 					}
 
 					//インスタンスをアクティブにします.
@@ -306,7 +306,7 @@ namespace AssetBundles
 			}
 		}
 
-		static AssetManager _instance;
+		static AssetBundleManager _instance;
 
 		/// <summary>
 		/// コンポーネントの生成コールバック.
@@ -316,12 +316,12 @@ namespace AssetBundles
 		{
 			//初めてのインスタンスは、シングルトンインスタンスとして登録.
 			if (_instance == null)
-				_instance = GetComponent<AssetManager>();
+				_instance = GetComponent<AssetBundleManager>();
 
 			//複数のシングルトンインスタンスは許可しません.
 			if (_instance != this)
 			{
-				Debug.LogErrorFormat(this, "Multiple {0} is not allowed. please fix it.", typeof(AssetManager).Name);
+				Debug.LogErrorFormat(this, "Multiple {0} is not allowed. please fix it.", typeof(AssetBundleManager).Name);
 				enabled = false;
 				return;
 			}
@@ -363,12 +363,12 @@ namespace AssetBundles
 				Debug.LogFormat ("name:{0}, hash:{1}, cached:{2}", name, hash, cached);
 				if (!cached)
 				{
-					AssetManager.LoadAssetBundle (name);
+					LoadAssetBundle (name);
 				}
 			}
 
 			var operations = new List<AssetBundleDownloadOperation> ();
-			foreach (var op in AssetManager.InProgressOperations)
+			foreach (var op in m_InProgressOperations)
 			{
 				if (op is AssetBundleDownloadOperation)
 					operations.Add (op as AssetBundleDownloadOperation);
@@ -1019,6 +1019,7 @@ namespace AssetBundles
 				m_ManifestHash = hash;
 			LoadAssetBundle(manifestAssetBundleName, true);
 			var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName);
+			operation.onComplete += obj => UpdateManifest (obj as AssetBundleManifest);
 			if(onComplete != null)
 				operation.onComplete += _ =>onComplete(operation);
 			

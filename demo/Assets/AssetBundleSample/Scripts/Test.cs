@@ -47,19 +47,19 @@ public class Test : MonoBehaviour
 	{
 		StartCoroutine (CoInitializeXXX());
 
-//		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-//		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
-//		AssetManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
+//		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+//		AssetBundleManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+//		AssetBundleManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
 
-//		AssetManager.m_CacheAssetBundleManifest = true;
-//		var request = AssetManager.Initialize();
+//		AssetBundleManager.m_CacheAssetBundleManifest = true;
+//		var request = AssetBundleManager.Initialize();
 	}
 
 
 	IEnumerator CoInitializeXXX()
 	{
-		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-		var opUpdateManifest = AssetManager.UpdateManifest(manifestName, Hash128.Parse (resourceVersion));
+		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+		var opUpdateManifest = AssetBundleManager.UpdateManifest(manifestName, Hash128.Parse (resourceVersion));
 
 		yield return StartCoroutine (opUpdateManifest);
 		if (!string.IsNullOrEmpty (opUpdateManifest.error))
@@ -68,7 +68,7 @@ public class Test : MonoBehaviour
 			yield break;
 		}
 
-		var op = AssetManager.PreloadAssetBundle ();
+		var op = AssetBundleManager.PreloadAssetBundle ();
 
 		// wait for finish.
 		while(!op.isDone)
@@ -81,10 +81,10 @@ public class Test : MonoBehaviour
 
 	public void UpdateManifest()
 	{
-//		AssetManager.m_RuntimeCache.Clear ();
-		AssetManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
-//		AssetManager.m_ManifestHash = Hash128.Parse (resourceVersion);
-		AssetManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
+//		AssetBundleManager.m_RuntimeCache.Clear ();
+		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+//		AssetBundleManager.m_ManifestHash = Hash128.Parse (resourceVersion);
+		AssetBundleManager.UpdateManifest(Hash128.Parse (resourceVersion), op => Debug.LogFormat("UpdateManifest {0}", op));
 	}
 
 	public void LoadAll()
@@ -114,7 +114,7 @@ public class Test : MonoBehaviour
 
 	IEnumerator CoLoadAll()
 	{
-		var op = AssetManager.PreloadAssetBundle ();
+		var op = AssetBundleManager.PreloadAssetBundle ();
 
 		// wait for finish.
 		while(!op.isDone)
@@ -128,10 +128,10 @@ public class Test : MonoBehaviour
 
 	public void Load()
 	{
-		AssetManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
 
 //		StartCoroutine (CoLoad());
-//		AssetManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+//		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
 	}
 
 	IEnumerator CoLoad()
@@ -144,7 +144,7 @@ public class Test : MonoBehaviour
 
 	public void LoadFromResources()
 	{
-		AssetManager.LoadAssetAsync<Texture2D> (assetName, img => image.texture = img);
+		AssetBundleManager.LoadAssetAsync<Texture2D> (assetName, img => image.texture = img);
 	}
 
 	public void LoadFromWeb()
@@ -153,8 +153,8 @@ public class Test : MonoBehaviour
 
 	public void ClearAll()
 	{
-		AssetManager.ClearAll ();
-//		string baseUrl = AssetManager.BaseDownloadingURL;
+		AssetBundleManager.ClearAll ();
+//		string baseUrl = AssetBundleManager.BaseDownloadingURL;
 //
 //		var manifest = AssetBundleManager.AssetBundleManifestObject;
 //		foreach (var name in manifest.GetAllAssetBundles()) {

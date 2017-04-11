@@ -213,19 +213,22 @@ namespace AssetBundles
 
 		public override void OnComplete()
         {
-            error = m_WWW.error;
-            if (!string.IsNullOrEmpty(error))
-                return;
+			error = m_WWW.error;
+			if (!string.IsNullOrEmpty (error))
+			{
+				Debug.LogError (error);
+			}
+			else
+			{
+				AssetBundle bundle = m_WWW.assetBundle;
+				if (bundle == null)
+					error = string.Format ("{0} is not a valid asset bundle.", assetBundleName);
+				else
+					assetBundle = new LoadedAssetBundle (m_WWW.assetBundle);
+			}
 
-            AssetBundle bundle = m_WWW.assetBundle;
-            if (bundle == null)
-                error = string.Format("{0} is not a valid asset bundle.", assetBundleName);
-            else
-                assetBundle = new LoadedAssetBundle(m_WWW.assetBundle);
-
-            m_WWW.Dispose();
-            m_WWW = null;
-
+			m_WWW.Dispose ();
+			m_WWW = null;
 			base.OnComplete ();
         }
 
@@ -281,7 +284,6 @@ namespace AssetBundles
 			}
 			else
 			{
-
 				var handler = m_request.downloadHandler as DownloadHandlerAssetBundle;
 				AssetBundle bundle = handler.assetBundle;
 				if (bundle == null)
@@ -620,7 +622,7 @@ namespace AssetBundles
 
 		public override void OnComplete ()
 		{
-			bool succeed = AssetManager.UpdateManifest (GetAsset<AssetBundleManifest> ());
+			bool succeed = AssetBundleManager.UpdateManifest (GetAsset<AssetBundleManifest> ());
 			if (!succeed && string.IsNullOrEmpty(m_DownloadingError))
 				m_DownloadingError = string.Format ("Failed to update manifest. manifest is not found.");
 			base.OnComplete ();
