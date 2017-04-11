@@ -79,7 +79,7 @@ namespace AssetBundles
         static List<AssetBundleLoadOperation> m_InProgressOperations = new List<AssetBundleLoadOperation>();
         static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]>();
 		static Dictionary<string, UnityEngine.Object> m_RuntimeCache = new Dictionary<string, UnityEngine.Object>();
-		public static Hash128 m_ManifestHash = new Hash128 ();
+		static Hash128 m_ManifestHash = new Hash128 ();
 		static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>> ();
 		static HashSet<string> m_Unloadable = new HashSet<string> ();
 
@@ -277,32 +277,111 @@ namespace AssetBundles
             return m_LoadedAssetBundles.ContainsKey(assetBundleName);
         }
 
-        /// <summary>
-        /// Initializes asset bundle namager and starts download of manifest asset bundle.
-        /// Returns the manifest asset bundle downolad operation object.
-        /// </summary>
-        static public AssetBundleLoadManifestOperation Initialize()
-        {
-            return Initialize(Utility.GetPlatformName());
-        }
 
-        /// <summary>
-        /// Initializes asset bundle namager and starts download of manifest asset bundle.
-        /// Returns the manifest asset bundle downolad operation object.
-        /// </summary>
-        static public AssetBundleLoadManifestOperation Initialize(string manifestAssetBundleName)
-        {
-#if UNITY_EDITOR
-            Log(LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
-#endif
+		/// <summary>
+		/// シングルトンインスタンスを取得します.
+		/// シーン上にインスタンスが存在しない場合、自動的に生成されます.
+		/// </summary>
+		public static AssetManager instance
+		{
+			get
+			{
+				if (_instance == null)
+				{
+					//シーン内のインスタンスを検索します.
+					_instance = GameObject.FindObjectOfType<AssetManager>();
 
-            var go = new GameObject("AssetBundleManager", typeof(AssetManager));
-            DontDestroyOnLoad(go);
+					//シーン内にインスタンスが存在しない場合、自動的に生成します.
+					if (_instance == null)
+					{
+						_instance = new GameObject(typeof(AssetManager).Name).AddComponent<AssetManager>();
+					}
 
+					//インスタンスをアクティブにします.
+					_instance.enabled = true;
+					_instance.gameObject.SetActive(true);
+				}
+
+				return _instance;
+			}
+		}
+
+		static AssetManager _instance;
+
+		/// <summary>
+		/// コンポーネントの生成コールバック.
+		/// インスタンスが生成された時に、コールされます
+		/// </summary>
+		protected virtual void Awake()
+		{
+			//初めてのインスタンスは、シングルトンインスタンスとして登録.
+			if (_instance == null)
+				_instance = GetComponent<AssetManager>();
+
+			//複数のシングルトンインスタンスは許可しません.
+			if (_instance != this)
+			{
+				Debug.LogErrorFormat(this, "Multiple {0} is not allowed. please fix it.", typeof(AssetManager).Name);
+				enabled = false;
+				return;
+			}
+
+			DontDestroyOnLoad(gameObject);
 			AssetBundleDownloadOperation.onComplete = OnCompleteAssetBundleDownloadOperation;
 
-			return UpdateManifest (manifestAssetBundleName);
-        }
+#if UNITY_EDITOR
+			Log(LogType.Info, "Simulation Mode: " + (SimulateAssetBundleInEditor ? "Enabled" : "Disabled"));
+#endif
+		}
+
+		/// <summary>
+		/// コンポーネントの破棄コールバック.
+		/// インスタンスが破棄された時にコールされます.
+		/// </summary>
+		protected virtual void OnDestroy()
+		{
+			//自身がシングルトンインスタンスの場合、登録を解除します.
+			if (_instance == this)
+				_instance = null;
+		}
+
+		/// <summary>
+		/// Preloads the asset bundle.
+		/// </summary>
+		/// <returns>The asset bundle.</returns>
+		public static AssetBundlePreDownloadOperation PreloadAssetBundle(System.Action<AssetBundlePreDownloadOperation> onComplete = null)
+		{
+			if (!m_AssetBundleManifest)
+			{
+				Log(LogType.Error, "Please initialize AssetBundleManifest by calling AssetManager.Initialize()");
+				return null;
+			}
+
+			foreach (var name in m_AssetBundleManifest.GetAllAssetBundles()) {
+				var hash = m_AssetBundleManifest.GetAssetBundleHash (name);
+				bool cached = Caching.IsVersionCached (name, hash);
+				Debug.LogFormat ("name:{0}, hash:{1}, cached:{2}", name, hash, cached);
+				if (!cached)
+				{
+					AssetManager.LoadAssetBundle (name);
+				}
+			}
+
+			var operations = new List<AssetBundleDownloadOperation> ();
+			foreach (var op in AssetManager.InProgressOperations)
+			{
+				if (op is AssetBundleDownloadOperation)
+					operations.Add (op as AssetBundleDownloadOperation);
+			}
+
+			var operation = new AssetBundlePreDownloadOperation (operations);
+			if(onComplete != null)
+				operation.onComplete += onComplete;
+			
+			m_InProgressOperations.Add (operation);
+
+			return operation;
+		}
 
         // Temporarily work around a il2cpp bug
 		static public void LoadAssetBundle(string assetBundleName)
@@ -826,7 +905,7 @@ namespace AssetBundles
 		/// Delete cached asset bundle.
 		/// </summary>
 		/// <param name="assetBundleName">AssetBundle name.</param>
-		static public void DeleteAssetBundle(string assetBundleName)
+		static public void ClearCachedAssetBundle(string assetBundleName)
 		{
 			if (!m_AssetBundleManifest)
 			{
@@ -834,7 +913,7 @@ namespace AssetBundles
 				return;
 			}
 
-			DeleteAssetBundle (assetBundleName, m_AssetBundleManifest.GetAssetBundleHash (assetBundleName));
+			ClearCachedAssetBundle (assetBundleName, m_AssetBundleManifest.GetAssetBundleHash (assetBundleName));
 		}
 
 		/// <summary>
@@ -842,7 +921,7 @@ namespace AssetBundles
 		/// </summary>
 		/// <param name="assetBundleName">AssetBundle name.</param>
 		/// <param name="hash">hash.</param>
-		static public void DeleteAssetBundle(string assetBundleName, Hash128 hash)
+		static public void ClearCachedAssetBundle(string assetBundleName, Hash128 hash)
 		{
 			UnloadAssetBundle (assetBundleName);
 			if (Caching.IsVersionCached (assetBundleName, hash))
@@ -860,7 +939,7 @@ namespace AssetBundles
 		/// <summary>
 		/// Delete all cached asset bundle.
 		/// </summary>
-		static public void DeleteAssetBundleAll()
+		static public void ClearCachedAssetBundleAll()
 		{
 			Caching.CleanCache ();
 
@@ -868,7 +947,7 @@ namespace AssetBundles
 				return;
 			
 			foreach (var bundleName in m_AssetBundleManifest.GetAllAssetBundles())
-				DeleteAssetBundle (bundleName, m_AssetBundleManifest.GetAssetBundleHash(bundleName));
+				ClearCachedAssetBundle (bundleName, m_AssetBundleManifest.GetAssetBundleHash(bundleName));
 		}
 
 		/// <summary>
@@ -878,13 +957,19 @@ namespace AssetBundles
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
 		/// <param name="manifest">Asset bundle manifest.</param>
-		public static void UpdateManifest (AssetBundleManifest manifest)
+		public static bool UpdateManifest (AssetBundleManifest manifest)
 		{
 			var oldManifest = m_AssetBundleManifest;
 			m_AssetBundleManifest = manifest;
 
+			if (!m_AssetBundleManifest)
+			{
+				Debug.LogError ("Failed to update manifest.");
+				return false;
+			}
+
 			if (!oldManifest)
-				return;
+				return true;
 			
 			var oldBundles = new HashSet<string>( oldManifest.GetAllAssetBundles() );
 			var newBundles = new HashSet<string>( manifest.GetAllAssetBundles() );
@@ -894,17 +979,20 @@ namespace AssetBundles
 
 				// The bundle has removed or changed. Need to delete cached bundle.
 				if (!newBundles.Contains (name) || oldHash != manifest.GetAssetBundleHash (name))
-					DeleteAssetBundle (name, oldHash);
+					ClearCachedAssetBundle (name, oldHash);
 			}
+			return true;
 		}
 
 		/// <summary>
 		/// Starts download of manifest asset bundle.
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
-		static public AssetBundleLoadManifestOperation UpdateManifest()
+		/// <param name="hash">Hash for manifest.</param>
+		/// <param name="onComplete">callback.</param>
+		static public AssetBundleLoadManifestOperation UpdateManifest(Hash128 hash = default(Hash128), System.Action<AssetBundleLoadManifestOperation> onComplete = null)
 		{
-			return UpdateManifest(Utility.GetPlatformName());
+			return UpdateManifest(Utility.GetPlatformName(), hash, onComplete);
 		}
 
 		/// <summary>
@@ -912,7 +1000,9 @@ namespace AssetBundles
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
 		/// <param name="manifestAssetBundleName">Manifest asset bundle name.</param>
-		static public AssetBundleLoadManifestOperation UpdateManifest(string manifestAssetBundleName)
+		/// <param name="hash">Hash for manifest.</param>
+		/// <param name="onComplete">callback.</param>
+		static public AssetBundleLoadManifestOperation UpdateManifest(string manifestAssetBundleName, Hash128 hash = default(Hash128), System.Action<AssetBundleLoadManifestOperation> onComplete = null)
 		{
 			#if UNITY_EDITOR
 			// If we're in Editor simulation mode, we don't need the manifest assetBundle.
@@ -920,16 +1010,18 @@ namespace AssetBundles
 				return null;
 			#endif
 
+
 			ClearRuntimeCacheAll ();
-			CancelOperationsAll ();
+			ClearOperationsAll ();
 			UnloadAssetbundlesAll ();
 
+			if(hash != default(Hash128))
+				m_ManifestHash = hash;
 			LoadAssetBundle(manifestAssetBundleName, true);
 			var operation = new AssetBundleLoadManifestOperation(manifestAssetBundleName);
-			operation.onComplete += obj => {
-				UpdateManifest (obj as AssetBundleManifest);
-				UnloadAssetBundle(manifestAssetBundleName);
-			};
+			if(onComplete != null)
+				operation.onComplete += _ =>onComplete(operation);
+			
 			m_InProgressOperations.Add(operation);
 			return operation;
 		}
@@ -947,6 +1039,20 @@ namespace AssetBundles
 				m_InProgressOperations.Count,
 				m_DownloadingBundles.Count
 			);
+
+			if (0 < InProgressOperations.Count)
+			{
+				sb.Append ("\n[InProgress]\n");
+				foreach(var op in m_InProgressOperations)
+					sb.AppendFormat ("  {0}\n",op.GetType().Name);
+			}
+
+			if (0 < m_DownloadingBundles.Count)
+			{
+				sb.Append ("\n[DownloadingBundles]\n");
+				foreach(var name in m_DownloadingBundles)
+					sb.AppendFormat ("  {0}\n", name);
+			}
 
 			if (0 < m_Depended.Count)
 			{
@@ -969,14 +1075,25 @@ namespace AssetBundles
 			if(m_AssetBundleManifest)
 			{
 				var bundles = m_AssetBundleManifest.GetAllAssetBundles ();
-				sb.AppendFormat ("\n[Manifest] {0}, bundles:{1}", m_AssetBundleManifest.name, bundles.Length);
-				sb.Append ("\n[Cached] ");
+
+				System.Text.StringBuilder sbCached = new System.Text.StringBuilder ();
+				System.Text.StringBuilder sbNotCached = new System.Text.StringBuilder ();
+				int cached = 0;
 				foreach(var ab in bundles)
 				{
 					var hash = m_AssetBundleManifest.GetAssetBundleHash (ab);
-					if (Caching.IsVersionCached (ab, hash))
-						sb.AppendFormat ("\n{0} [{1}]", ab, hash.ToString().Substring(0, 4));
+					string summary = string.Format ("  {0} [{1}]", ab, hash.ToString ().Substring (0, 4));
+					if (Caching.IsVersionCached (ab, hash)) {
+						sbCached.AppendLine (summary);
+						cached++;
+					} else {
+						sbNotCached.AppendLine (summary);
+					}
 				}
+
+				sb.AppendFormat ("\n[Manifest] AllAssetBundles:{0} cached:{1}\n", bundles.Length, cached);
+				sb.AppendFormat("\n[Cached]\n{0}", sbCached);
+				sb.AppendFormat("\n[NotCached]\n{0}", sbNotCached);
 			}
 
 			return sb;
@@ -1003,12 +1120,23 @@ namespace AssetBundles
 		/// <summary>
 		/// Clears the operations.
 		/// </summary>
-		public static void CancelOperationsAll()
+		public static void ClearOperationsAll()
 		{
 			m_DownloadingErrors.Clear ();
 			m_InProgressOperations.ForEach (op => op.OnCancel());
 			m_InProgressOperations.Clear ();
 		}
-	
+
+		/// <summary>
+		/// Clears the operations.
+		/// </summary>
+		public static void ClearAll()
+		{
+			ClearRuntimeCacheAll ();
+			ClearOperationsAll ();
+			UnloadAssetbundlesAll ();
+			ClearCachedAssetBundleAll ();
+			Resources.UnloadUnusedAssets ();
+		}
 	} // End of AssetManager.
 }

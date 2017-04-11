@@ -275,15 +275,20 @@ namespace AssetBundles
 		public override void OnComplete()
         {
             error = m_request.error;
-            if (!string.IsNullOrEmpty(error))
-                return;
+			if (!string.IsNullOrEmpty (error))
+			{
+				Debug.LogError (error);
+			}
+			else
+			{
 
-            var handler = m_request.downloadHandler as DownloadHandlerAssetBundle;
-            AssetBundle bundle = handler.assetBundle;
-            if (bundle == null)
-                error = string.Format("{0} is not a valid asset bundle.", assetBundleName);
-            else
-                assetBundle = new LoadedAssetBundle(bundle);
+				var handler = m_request.downloadHandler as DownloadHandlerAssetBundle;
+				AssetBundle bundle = handler.assetBundle;
+				if (bundle == null)
+					error = string.Format ("{0} is not a valid asset bundle.", assetBundleName);
+				else
+					assetBundle = new LoadedAssetBundle (bundle);
+			}
 
             m_request.Dispose();
             m_request = null;
@@ -606,10 +611,20 @@ namespace AssetBundles
 
     public class AssetBundleLoadManifestOperation : AssetBundleLoadAssetOperationFull
     {
+		public string error {get{ return m_DownloadingError;}}
+
         public AssetBundleLoadManifestOperation(string bundleName)
 			: base(bundleName, "AssetBundleManifest", typeof(AssetBundleManifest), null)
         {
         }
+
+		public override void OnComplete ()
+		{
+			bool succeed = AssetManager.UpdateManifest (GetAsset<AssetBundleManifest> ());
+			if (!succeed && string.IsNullOrEmpty(m_DownloadingError))
+				m_DownloadingError = string.Format ("Failed to update manifest. manifest is not found.");
+			base.OnComplete ();
+		}
     }
 
 
@@ -623,7 +638,7 @@ namespace AssetBundles
 			id = GetId (assetName, type);
 		}
 
-		new public static string GetId(string assetName, System.Type type)
+		public static string GetId(string assetName, System.Type type)
 		{
 			return string.Format ("{0}.{1}", assetName, type.Name);
 		}
@@ -758,6 +773,78 @@ namespace AssetBundles
 			}
 			m_Operation = null;
 			base.OnCancel ();
+		}
+	}
+
+	public class AssetBundlePreDownloadOperation : AssetBundleLoadOperation
+	{
+
+		readonly List<AssetBundleDownloadOperation> m_Operations;
+
+		public AssetBundlePreDownloadOperation(List<AssetBundleDownloadOperation> operations)
+		{
+			m_Operations = operations;
+		}
+
+		public virtual float progress { get; protected set;}
+		public virtual bool isDone { get; protected set;}
+		public virtual string error { get; protected set;}
+		public System.Action<AssetBundlePreDownloadOperation> onComplete { get; set; }
+
+		public override bool Update()
+		{
+			if (m_Operations.Count == 0)
+			{
+				progress = 1;
+				isDone = true;
+				return false;
+			}
+				
+
+			progress = 0;
+			isDone = true;
+			foreach(var op in m_Operations)
+			{
+				if (!op.IsDone ()) {
+					isDone = false;
+					progress += op.progress;
+				}
+				else
+				{
+					progress += 1f;
+				}
+			}
+			progress /= m_Operations.Count;
+
+			return !IsDone ();
+		}
+
+		public override bool IsDone ()
+		{
+			return isDone;
+		}
+
+		public override void OnComplete()
+		{
+			foreach(var op in m_Operations)
+			{
+				if (!string.IsNullOrEmpty(op.error))
+				{
+					error = op.error;
+					break;
+				}
+			}
+
+			if (onComplete == null)
+				return;
+
+			foreach (System.Action<AssetBundlePreDownloadOperation> action in onComplete.GetInvocationList()) {
+				try{
+					action (this);
+				}catch(System.Exception ex){
+					Debug.LogException(ex);
+				}
+			}
 		}
 	}
 }
