@@ -763,16 +763,18 @@ namespace AssetBundles
 #if UNITY_EDITOR
             if (SimulateAssetBundleInEditor)
             {
+				AssetBundleLoadAssetOperationSimulation operation = null;
+				UnityEngine.Object target = null;
                 string[] assetPaths = AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(assetBundleName, assetName);
                 if (assetPaths.Length == 0)
                 {
                     Log(LogType.Error, "There is no asset with name \"" + assetName + "\" in " + assetBundleName);
-                    return null;
                 }
-
-                // @TODO: Now we only get the main object from the first asset. Should consider type also.
-                UnityEngine.Object target = AssetDatabase.LoadMainAssetAtPath(assetPaths[0]);
-				AssetBundleLoadAssetOperationSimulation operation = new AssetBundleLoadAssetOperationSimulation(target);
+				else
+				{
+					target = AssetDatabase.LoadAssetAtPath(assetPaths[0], type);
+					operation = new AssetBundleLoadAssetOperationSimulation(target);
+				}
 
 				// Load complete callback.
 				if (onLoad != null) {

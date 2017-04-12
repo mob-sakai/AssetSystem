@@ -697,7 +697,6 @@ namespace AssetBundles
 	public class LoadAssetWebRequestOperation : AssetBundleLoadAssetOperationFull
 	{
 		UnityWebRequest m_WebRequest;
-		AsyncOperation m_Operation;
 		string m_Url;
 		System.Func<DownloadHandler, Object> m_AssetSelector;
 		Object asset;
@@ -706,14 +705,18 @@ namespace AssetBundles
 			: base(null, url, type, runtimeCache)
 		{
 
+			id = LoadAssetOperation.GetId (url, type);
+
+			// Operation has been not cached.
+			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
+				return;
+				
 			if (request == null || request.downloadHandler == null)
 				throw new System.ArgumentNullException("request");
 			m_Url = request.url;
 			m_WebRequest = request;
-			m_Operation = request.Send();
+			m_WebRequest.Send();
 			m_AssetSelector = assetSelector;
-
-			id = LoadAssetOperation.GetId (url, type);
 		}
 
 
@@ -733,12 +736,6 @@ namespace AssetBundles
 			// Operation has been cached.
 			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
 				return false;
-			
-			if (m_Operation != null && m_Operation.isDone)
-			{
-				if (m_WebRequest.isError)
-					Debug.LogErrorFormat ("An error has occurred during loading asset from {0}: {1}",m_Url, m_WebRequest.error);
-			}
 
 			return !IsDone();
 		}
@@ -749,18 +746,23 @@ namespace AssetBundles
 			if (m_RuntimeCache != null && m_RuntimeCache.ContainsKey (id))
 				return true;
 			
-			return m_Operation != null && m_Operation.isDone;
+			return m_WebRequest == null || m_WebRequest.isDone || m_WebRequest.isError;
 		}
 
 		public override void OnComplete()
 		{
-			asset = m_AssetSelector(m_WebRequest.downloadHandler);
-			if (asset)
-				m_RuntimeCache [id] = asset;
+			if (m_WebRequest != null) {
+				if (m_WebRequest.isDone && !m_WebRequest.isError) {
+					asset = m_AssetSelector (m_WebRequest.downloadHandler);
+					if (asset)
+						m_RuntimeCache [id] = asset;
+				} else {
+					Debug.LogErrorFormat ("An error has occurred during loading asset from {0}: {1}", m_Url, m_WebRequest.error);
+				}
 
-			m_WebRequest.Dispose();
-			m_WebRequest = null;
-			m_Operation = null;
+				m_WebRequest.Dispose ();
+				m_WebRequest = null;
+			}
 			base.OnComplete ();
 		}
 
@@ -773,7 +775,6 @@ namespace AssetBundles
 				m_WebRequest.Dispose ();
 				m_WebRequest = null;
 			}
-			m_Operation = null;
 			base.OnCancel ();
 		}
 	}

@@ -276,6 +276,7 @@ GameObject:
   m_Component:
   - component: {fileID: 117648009}
   - component: {fileID: 117648008}
+  - component: {fileID: 117648010}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -295,9 +296,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   assetBundleName: image_001
-  assetName: image_001
+  assetName: https://patch-cdn-sand-mbl-mobcast.akamaized.net/image/shop/agent/BNR_agent_0001.png
   resourceDomain: https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/
   resourceVersion: aaaa
+  manifestName: Android
   image: {fileID: 987982336}
   m_Log: {fileID: 970121589}
   m_Progress: {fileID: 751962053}
@@ -314,6 +316,17 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &117648010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 117648007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6309cb12c9f62482c8451f716f97d470, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &163881151
 GameObject:
   m_ObjectHideFlags: 0
