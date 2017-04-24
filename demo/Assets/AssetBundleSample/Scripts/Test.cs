@@ -16,7 +16,7 @@ public class Test : MonoBehaviour
 	public string manifestName = "Android";
 
 
-	public RawImage image;
+	public Image image;
 
 	public Text m_Log;
 	public Text m_Progress;
@@ -43,6 +43,16 @@ public class Test : MonoBehaviour
 ////        yield return StartCoroutine(InstantiateGameObjectAsync(assetBundleName, assetName));
 //    }
 
+	public void SetSourceAssetBundleURL()
+	{
+		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain);
+	}
+
+	public void SetDevelopmentAssetBundleServer()
+	{
+		AssetBundleManager.SetDevelopmentAssetBundleServer ();
+	}
+
 	public void InitializeXXX()
 	{
 		StartCoroutine (CoInitializeXXX());
@@ -58,7 +68,7 @@ public class Test : MonoBehaviour
 
 	IEnumerator CoInitializeXXX()
 	{
-		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
+//		AssetBundleManager.SetSourceAssetBundleURL(resourceDomain + resourceVersion);
 		var opUpdateManifest = AssetBundleManager.UpdateManifest(manifestName, Hash128.Parse (resourceVersion));
 
 		yield return StartCoroutine (opUpdateManifest);
@@ -128,7 +138,7 @@ public class Test : MonoBehaviour
 
 	public void Load()
 	{
-		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
+		AssetBundleManager.LoadAssetAsync<Sprite>(assetBundleName, assetName, obj => image.sprite = obj);
 
 //		StartCoroutine (CoLoad());
 //		AssetBundleManager.LoadAssetAsync<Texture2D>(assetBundleName, assetName, obj => image.texture = obj);
@@ -136,15 +146,15 @@ public class Test : MonoBehaviour
 
 	IEnumerator CoLoad()
 	{
-		var op = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(Texture2D));
+		var op = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(Sprite));
 
 		yield return StartCoroutine (op);
-		image.texture = op.GetAsset<Texture2D> ();
+		image.sprite = op.GetAsset<Sprite> ();
 	}
 
 	public void LoadFromResources()
 	{
-		AssetBundleManager.LoadAssetAsync<Texture2D> (assetName, img => image.texture = img);
+		AssetBundleManager.LoadAssetAsync<Sprite> (assetName, img => image.sprite = img);
 	}
 
 	public void LoadFromWeb()
