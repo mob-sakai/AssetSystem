@@ -36,7 +36,9 @@ namespace Mobcast.Coffee.AssetSystem
 		/// The base downloading url which is used to generate the full
 		/// downloading url with the assetBundle names.
 		/// </summary>
-		public static string SourceURL { set; get; }
+		public static string resourceDomainURL { set; get; }
+
+		public static string m_Version { set; get; }
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		//		static Dictionary<string, string> m_DownloadingErrors = new Dictionary<string, string>();
@@ -44,7 +46,7 @@ namespace Mobcast.Coffee.AssetSystem
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
 		//		public static Dictionary<string, string[]> m_Dependencies = new Dictionary<string, string[]>();
 		public static Dictionary<string, UnityEngine.Object> m_RuntimeCache = new Dictionary<string, UnityEngine.Object>();
-		public static Hash128 m_ManifestHash = new Hash128();
+//		public static Hash128 m_ManifestHash = new Hash128();
 		public static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>>();
 		static HashSet<string> m_Unloadable = new HashSet<string>();
 
@@ -58,12 +60,12 @@ namespace Mobcast.Coffee.AssetSystem
 		IEnumerator Start()
 		{
 			yield return new WaitUntil(() => Caching.ready);
-			m_ManifestHash = Hash128.Parse(PlayerPrefs.GetString("AssetBundleManifestHash"));
+		m_Version = PlayerPrefs.GetString("AssetManager_ResourceVersion");
 
 			//TODO: 最後に利用したまニフェkストをロード.
-			if (Caching.IsVersionCached(Platform, m_ManifestHash))
+		if (Caching.IsVersionCached(Platform, Hash128.Parse(m_Version)))
 			{
-				yield return StartCoroutine(UpdateManifest(m_ManifestHash));
+		yield return StartCoroutine(SetVersion(m_Version));
 			}
 			yield break;
 		}
@@ -87,6 +89,7 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 			}
 
+		//アンロード可能なアセットバンドルをアンロード
 			foreach (var assetBundleName in m_Unloadable)
 				UnloadAssetBundleInternal(assetBundleName);
 			m_Unloadable.Clear();
@@ -100,12 +103,12 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <example>For example, AssetBundles/iOS/xyz-scene must map to
 		/// absolutePath/iOS/xyz-scene.
 		/// <example>
-		public static void SetURL(string absolutePath)
+		public static void SetDomainURL(string absolutePath)
 		{
 			if (!absolutePath.EndsWith("/"))
 				absolutePath += "/";
 
-			SourceURL = absolutePath + Platform + "/";
+			resourceDomainURL = absolutePath;
 		}
 
 
@@ -195,14 +198,15 @@ namespace Mobcast.Coffee.AssetSystem
 
 			//TODO: 既にロードしていないか確認する
 
-			string url = SourceURL + assetBundleName;
+			string url = resourceDomainURL + m_Version + "/" + Platform + "/" + assetBundleName;
 
 			UnityWebRequest request = null;
 			if (isLoadingAssetBundleManifest)
 			{
+				var hash = Hash128.Parse(m_Version);
 				// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
-				Debug.LogFormat("LoadingAssetBundleManifest: {0}, {1} (cached:{2})", url, m_ManifestHash, Caching.IsVersionCached(assetBundleName, m_ManifestHash));
-				request = UnityWebRequest.GetAssetBundle(url, m_ManifestHash, 0);
+		Debug.LogFormat("LoadingAssetBundleManifest: {0}, {1} (cached:{2})", url, hash, Caching.IsVersionCached(assetBundleName, hash));
+		request = UnityWebRequest.GetAssetBundle(url, hash, 0);
 			}
 			else
 			{
@@ -211,6 +215,11 @@ namespace Mobcast.Coffee.AssetSystem
 			m_InProgressOperations.Add(new BundleLoadOperation(request));
 		}
 
+		/// <summary>
+		/// 可能な場合アンロードする
+		/// 
+		/// </summary>
+		/// <param name="assetBundleName">Asset bundle name.</param>
 		static protected void UnloadAssetBundle(string assetBundleName)
 		{
 			if (Manifest)
@@ -222,6 +231,10 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 		}
 
+		/// <summary>
+		/// アンロードする
+		/// </summary>
+		/// <param name="assetBundleName">Asset bundle name.</param>
 		static protected void UnloadAssetBundleInternal(string assetBundleName)
 		{
 			m_Depended.Remove(assetBundleName);
@@ -307,7 +320,11 @@ namespace Mobcast.Coffee.AssetSystem
 			// Add load complete callback.
 			if (onLoad != null)
 			{
-				operation.onComplete += () => onLoad(m_RuntimeCache.ContainsKey(operationId) ? m_RuntimeCache[operationId] : null);
+				operation.onComplete += () =>
+				{
+		Debug.LogFormat("oncomplete  {0} {1}", operationId, m_RuntimeCache.ContainsKey(operationId));
+					onLoad(m_RuntimeCache.ContainsKey(operationId) ? m_RuntimeCache[operationId] : null);
+				};
 			}
 
 			return operation;
@@ -320,9 +337,9 @@ namespace Mobcast.Coffee.AssetSystem
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
 		/// <param name="manifest">Asset bundle manifest.</param>
-		static void UpdateManifest(AssetBundleManifest manifest)
+		static void SetVersion(AssetBundleManifest manifest)
 		{
-			Debug.Log("update manifest. " + m_ManifestHash);
+		Debug.Log("update manifest. " + m_Version);
 			var oldManifest = Manifest;
 			Manifest = manifest;
 
@@ -339,10 +356,10 @@ namespace Mobcast.Coffee.AssetSystem
 				var oldBundles = new HashSet<string>(oldManifest.GetAllAssetBundles());
 				var newBundles = new HashSet<string>(manifest.GetAllAssetBundles());
 
-				Debug.Log("old.");
-				oldBundles.Select(x => x + ":" + oldManifest.GetAssetBundleHash(x) + "\n").LogDump();
-				Debug.Log("new.");
-				newBundles.Select(x => x + ":" + manifest.GetAssetBundleHash(x) + "\n").LogDump();
+//				Debug.Log("old.");
+//				oldBundles.Select(x => x + ":" + oldManifest.GetAssetBundleHash(x) + "\n").LogDump();
+//				Debug.Log("new.");
+//				newBundles.Select(x => x + ":" + manifest.GetAssetBundleHash(x) + "\n").LogDump();
 
 				foreach (var name in oldBundles)
 				{
@@ -353,7 +370,7 @@ namespace Mobcast.Coffee.AssetSystem
 						ClearCachedAssetBundle(name, oldHash);
 				}
 			}
-			PlayerPrefs.SetString("AssetBundleManifestHash", m_ManifestHash.ToString());
+		PlayerPrefs.SetString("AssetManager_ResourceVersion", m_Version);
 		}
 
 		/// <summary>
@@ -362,8 +379,10 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		/// <param name="hash">Hash for manifest.</param>
 		/// <param name="onComplete">callback.</param>
-		static public AssetLoadOperation UpdateManifest(Hash128 hash = default(Hash128))
+		static public AssetLoadOperation SetVersion(string resourceVersion)
 		{
+			m_Version = resourceVersion;
+//			m_ManifestHash = Hash128.Parse(m_Version);
 
 			#if UNITY_EDITOR
 			// If we're in Editor simulation mode, we don't need the manifest assetBundle.
@@ -375,11 +394,26 @@ namespace Mobcast.Coffee.AssetSystem
 			ClearOperationsAll();
 			UnloadAssetbundlesAll();
 
-			if (hash != default(Hash128))
-				m_ManifestHash = hash;
 
-			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", UpdateManifest);
+			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetVersion);
 		}
+
+
+		static public AssetLoadOperation UpdateResourceVersions(string url)
+		{
+			#if UNITY_EDITOR
+			// If we're in Editor simulation mode, we don't need the manifest assetBundle.
+			if (SimulateAssetBundleInEditor)
+				return null;
+			#endif
+
+			return LoadAssetAsync<TextObject>(url, txt=>
+			{
+				resourceVersionList = JsonUtility.FromJson<ResourceVersionList>(txt ? txt.text : "{}");
+			});
+		}
+
+	public static ResourceVersionList resourceVersionList = new ResourceVersionList();
 
 		/// <summary>
 		/// Delete cached asset bundle.
