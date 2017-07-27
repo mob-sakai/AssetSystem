@@ -5,9 +5,16 @@ AssetSystem
 
 ゲーム内においてアセットを読み込むためのシステムです。
 
-## 読込み可能なもの
 
-すべて同じメソッドで読み込むことができます。
+
+## Requirement
+
+* Unity5.4+
+* No other SDK
+
+
+
+## 読込み可能なもの
 
 * AssetBundle
 * StreamingAssets
@@ -64,10 +71,6 @@ AssetManager.UpdateResourceVersions("https://s3-ap-northeast-1.amazonaws.com/pat
 * バージョン　アセットバンドルビルド　ハッシュ値
 * プレロード　事前にダウンロード
 
-## Requirement
-
-* Unity5.4+
-* No other SDK
 
 
 
