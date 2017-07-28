@@ -25,7 +25,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <summary>What's the operation's progress. (Read Only).</summary>
 		public float progress { get; protected set; }
 
-		public event System.Action onComplete = ()=>{};
+		public event System.Action onComplete = () => { };
 
 //		public bool MoveNext()
 //		{
@@ -92,28 +92,41 @@ namespace Mobcast.Coffee.AssetSystem
 			return string.Format("{0}", bundleName);
 		}
 
-		public BundleLoadOperation(UnityWebRequest request)
+		public BundleLoadOperation(string bundleName)
 		{
-			if (request == null || !(request.downloadHandler is DownloadHandlerAssetBundle))
-				throw new System.ArgumentNullException("request");
-
-			m_request = request;
-			m_request.Send();
-			id = System.IO.Path.GetFileName(m_request.url);
+			this.id = bundleName;
 		}
 
-		public override bool keepWaiting{get{return m_request != null && !m_request.isDone;}}
+		public BundleLoadOperation(string bundleName, UnityWebRequest request)
+		{
+			this.id = bundleName;
+			m_request = request;
+			m_request.Send();
+//			id = System.IO.Path.GetFileName(m_request.url);
+		}
+
+		public override bool keepWaiting
+		{
+			get { return m_request != null && !m_request.isDone; }
+		}
 
 		public override bool Update()
 		{
 			progress = m_request != null ? m_request.downloadProgress : 1;
+
+
 			return base.Update();
 		}
 
 		public override void OnComplete()
 		{
-			Debug.Log("BundleLoadOperation OnComplete");
-			if (!string.IsNullOrEmpty(m_request.error))
+			Debug.Log("BundleLoadOperation OnComplete" + id);
+
+
+			if (m_request == null)
+			{
+			}
+			else if (!string.IsNullOrEmpty(m_request.error))
 			{
 				error = m_request.error;
 				Debug.LogError(error);
@@ -132,10 +145,13 @@ namespace Mobcast.Coffee.AssetSystem
 					AssetManager.AddDepend(System.IO.Path.GetFileName(m_request.url), null);
 				}
 			}
-			AssetManager.m_LoadedAssetBundles.Add(System.IO.Path.GetFileName(m_request.url), assetBundle);
 
-			m_request.Dispose();
-			m_request = null;
+			if (m_request != null)
+			{
+				AssetManager.m_LoadedAssetBundles.Add (System.IO.Path.GetFileName (m_request.url), assetBundle);
+				m_request.Dispose ();
+				m_request = null;
+			}
 
 			base.OnComplete();
 		}
@@ -165,7 +181,7 @@ namespace Mobcast.Coffee.AssetSystem
 		protected string m_AssetName;
 		protected System.Type m_Type;
 		protected AsyncOperation m_Request = null;
-		public UnityWebRequest m_WebRequest = null;
+		protected UnityWebRequest m_WebRequest = null;
 
 		public static string GetId(string bundleName, string assetName, System.Type type)
 		{
@@ -179,16 +195,57 @@ namespace Mobcast.Coffee.AssetSystem
 			m_Type = type;
 			id = GetId(m_AssetBundleName, m_AssetName, m_Type);
 
+			AssetManager.AddDepend(m_AssetBundleName, id);
+
+#if UNITY_EDITOR
+			// Simulation mode (only in editor).
+			if (AssetManager.isSumilationMode && !assetName.Contains("://"))
+			{
+				var pathes = !string.IsNullOrEmpty(bundleName)
+					? UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
+					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, assetName))
+						.Select(UnityEditor.AssetDatabase.GUIDToAssetPath)
+						.ToArray();
+				var asset = pathes.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type)).FirstOrDefault();
+				if (asset)
+				{
+					AssetManager.m_RuntimeCache[id] = asset;
+				}
+				else
+				{
+					error = "error : loading error YYY";
+				}
+				progress = 1f;
+				return;
+			}
+#endif
+
 			// Asset in Web or StreamingAssets.
 			if (assetName.Contains("://"))
 			{
-				if (m_Type == typeof(Texture))
-					m_WebRequest = UnityWebRequest.GetTexture(assetName, true);
-				else if (m_Type == typeof(AudioClip))
-					m_WebRequest = UnityWebRequest.GetAudioClip(assetName, AudioType.MPEG);
-				else
+				if (m_Type == typeof(Texture2D))
+				{
 					m_WebRequest = UnityWebRequest.Get(assetName);
-				
+					m_WebRequest.SetCacheable(new CacheableDownloadHandlerTexture(m_WebRequest, new byte[256 * 1024]));
+//#if UNITY_2017_1_OR_NEWER
+//					m_WebRequest = UnityWebRequestTexture.GetTexture(assetName, true);
+//#else
+//					m_WebRequest = UnityWebRequest.GetTexture(assetName, true);
+//#endif
+				}
+				else if (m_Type == typeof(AudioClip))
+				{
+#if UNITY_2017_1_OR_NEWER
+					m_WebRequest = UnityWebRequestMultimedia.GetAudioClip(assetName, AudioType.MPEG);
+#else
+					m_WebRequest = UnityWebRequest.GetAudioClip(assetName, AudioType.MPEG);
+#endif
+				}
+				else
+				{
+					m_WebRequest = UnityWebRequest.Get(assetName);
+				}
+
 				m_Request = m_WebRequest.Send();
 			}
 			// Asset in Resources.
@@ -198,18 +255,20 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 		}
 
-		public T GetAsset<T>() where T:Object
+		public T GetAsset<T>() where T : Object
 		{
 			// Operation has been cached.
 			Object obj = null;
 			return AssetManager.m_RuntimeCache.TryGetValue(id, out obj) ? obj as T : null;
 		}
 
-//		public override float progress { get { return m_Request != null ? m_Request.progress : 0; } }
-
 		// Returns true if more Update calls are required.
 		public override bool Update()
 		{
+			// Return if meeting downloading error.
+			if (!string.IsNullOrEmpty(error))
+				return false;
+			
 			// Operation has been cached.
 			if (AssetManager.m_RuntimeCache.ContainsKey(id))
 				return false;
@@ -219,20 +278,22 @@ namespace Mobcast.Coffee.AssetSystem
 			if (m_Request == null && !string.IsNullOrEmpty(m_AssetBundleName))
 			{
 				AssetBundle bundle;
-				if (AssetManager.m_LoadedAssetBundles.TryGetValue(m_AssetBundleName, out bundle))
+
+//				if (AssetManager.Manifest && !AssetManager.Manifest.GetAllDependencies( m_AssetBundleName ).All(AssetManager.m_LoadedAssetBundles.ContainsKey))
+//				{
+//					return true;
+//				}
+//				if (AssetManager.m_LoadedAssetBundles.TryGetValue(m_AssetBundleName, out bundle))
+				if (AssetManager.TryGetBundle(m_AssetBundleName, out bundle))
 				{
 					if (!bundle)
 					{
-						error = "error : bundle loading error";
-						Debug.LogError(error);
+						error = "error : bundle loading error XXX";
 						return false;
 					}
 					else
 					{
-//						Debug.Log("#### Bundle loaded. "  + id + ", " + bundle);
-//						bundle.GetAllAssetNames().LogDump();
 						m_Request = bundle.LoadAssetWithSubAssetsAsync(m_AssetName, m_Type);
-						AssetManager.AddDepend(m_AssetBundleName, id);
 					}
 				}
 			}
@@ -252,7 +313,7 @@ namespace Mobcast.Coffee.AssetSystem
 				// Return if meeting downloading error.
 				if (!string.IsNullOrEmpty(error))
 					return false;
-				
+
 				return m_Request == null || !m_Request.isDone;
 			}
 		}
@@ -261,27 +322,25 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			Debug.Log(id + " OnComplete. " + m_Request);
 
+				AssetManager.SubDepend(m_AssetBundleName, id);
+
+
 			// Asset in Web or StreamingAssets.
 			if (m_WebRequest != null)
 			{
 				Debug.Log(" m_WebRequest. " + m_WebRequest.isDone);
+				error = m_WebRequest.error;
 
 				if (m_WebRequest.isDone && string.IsNullOrEmpty(m_WebRequest.error))
 				{
 					Object asset = null;
-					if (m_Type == typeof(Texture))
-						asset = (m_WebRequest.downloadHandler as DownloadHandlerTexture).texture;
+					if (m_Type == typeof(Texture2D))
+						asset = (m_WebRequest.downloadHandler as CacheableDownloadHandlerTexture).texture;
 					else if (m_Type == typeof(AudioClip))
 						asset = (m_WebRequest.downloadHandler as DownloadHandlerAudioClip).audioClip;
-					else if (m_Type == typeof(TextObject))
-					{
-						asset = ScriptableObject.CreateInstance<TextObject>();
-						(asset as TextObject).text = m_WebRequest.downloadHandler.text;
-					}
 					else
 					{
-						asset = ScriptableObject.CreateInstance<BytesObject>();
-						m_WebRequest.downloadHandler.data.CopyTo((asset as BytesObject).bytes,0);
+						asset = PlainObject.Create(m_WebRequest.downloadHandler.data);
 					}
 					AssetManager.m_RuntimeCache[id] = asset;
 				}
@@ -304,7 +363,6 @@ namespace Mobcast.Coffee.AssetSystem
 			else if (m_Request is AssetBundleRequest)
 			{
 				Debug.Log(" AssetBundleRequest. " + (m_Request as AssetBundleRequest).asset);
-				AssetManager.SubDepend(m_AssetBundleName, id);
 				if ((m_Request as AssetBundleRequest).asset)
 					AssetManager.m_RuntimeCache[id] = (m_Request as AssetBundleRequest).asset;
 				else
@@ -313,7 +371,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			if (!string.IsNullOrEmpty(error))
 				Debug.LogError(error);
-				
+
 
 			base.OnComplete();
 		}
@@ -365,6 +423,7 @@ namespace Mobcast.Coffee.AssetSystem
 					rate += op.progress;
 				}
 			}
+			progress = rate / m_Operations.Count;
 			return base.Update();
 		}
 
@@ -383,6 +442,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public override void OnComplete()
 		{
+			progress = 1;
 			sb.Length = 0;
 			foreach (var op in m_Operations)
 			{

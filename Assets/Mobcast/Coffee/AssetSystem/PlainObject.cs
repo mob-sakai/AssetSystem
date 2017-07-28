@@ -1,22 +1,30 @@
 ﻿using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace Mobcast.Coffee.AssetSystem
 {
-	public class TextObject : ScriptableObject
+	public class PlainObject : ScriptableObject
 	{
-		public string text;
-	}
+		public static PlainObject Create(byte[] bytes)
+		{
+			var asset = ScriptableObject.CreateInstance<PlainObject>();
+			asset.bytes = bytes;
+			return asset;
+		}
 
-	public class BytesObject : ScriptableObject
-	{
-		public byte[] bytes;
+		public byte[] bytes { get; private set; }
+
+		public string text { get { return m_Text ?? (m_Text = Encoding.UTF8.GetString(bytes)); } }
+
+		string m_Text;
+
 	}
 
 	[System.Serializable]
-	public class ResourceVersion
+	public struct Patch
 	{
 		public string comment;
 		public string commitHash;
@@ -25,17 +33,23 @@ namespace Mobcast.Coffee.AssetSystem
 
 
 	[System.Serializable]
-	public class ResourceVersionList :  ISerializationCallbackReceiver
+	public class PatchList :  ISerializationCallbackReceiver
 	{
-		public void OnBeforeSerialize(){}
+		public void OnBeforeSerialize()
+		{
+		}
 
 		public void OnAfterDeserialize()
 		{
-			patchList = patchList.Where(x=>0 < x.deployTime).OrderByDescending(x=>x.deployTime).ToArray();
-			leastVersion = patchList.FirstOrDefault();
+			patchList = patchList
+				.Where(x => 0 < x.deployTime)
+				.OrderByDescending(x => x.deployTime)
+				.ToArray();
+			
+			leatestPatch = patchList.FirstOrDefault();
 		}
 
-		public ResourceVersion[] patchList = new ResourceVersion[0];
-		[System.NonSerialized] public ResourceVersion leastVersion = new ResourceVersion();
+		public Patch[] patchList = new Patch[0];
+		[System.NonSerialized] public Patch leatestPatch;
 	}
 }
