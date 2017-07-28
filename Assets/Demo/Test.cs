@@ -31,7 +31,7 @@ public class Test : MonoBehaviour
 
 	public void UpdateManifest()
 	{
-		AssetManager.SetVersion(resourceVersion);
+		AssetManager.SetPatch(AssetManager.patch);
 	}
 
 	public void LoadAll()
@@ -40,11 +40,10 @@ public class Test : MonoBehaviour
 
 	}
 
-
-
 	public void LoadFromBundle()
 	{
-		AssetManager.LoadAssetAsync<Sprite>(assetBundleName, assetName, obj => image.sprite = obj);
+		AssetManager.AddDepend("common", "keep");
+		AssetManager.LoadAssetAsync<GameObject>(assetBundleName, assetName, obj => GameObject.Instantiate(obj));
 	}
 
 	public void LoadFromResources()
@@ -54,13 +53,13 @@ public class Test : MonoBehaviour
 
 	public void LoadFromWeb()
 	{
-		AssetManager.LoadAssetAsync<Texture> ("https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/image/shop/order/BNR_order_0000.png", img => rawimage.texture = img);
+		AssetManager.LoadAssetAsync<Texture2D> ("https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/image/shop/order/BNR_order_0001.png", img => rawimage.texture = img);
 	}
 
 
 	public void LoadVersions()
 	{
-		AssetManager.UpdateResourceVersions("https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/deploy/history.json");
+		AssetManager.UpdatePatchList(AssetManager.domainURL + "deploy/history.json");
 	}
 
 	public void ClearAll()
@@ -68,6 +67,3 @@ public class Test : MonoBehaviour
 		AssetManager.ClearAll ();
 	}
 }
-
-
-

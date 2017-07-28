@@ -1,0 +1,41 @@
+﻿using UnityEngine;
+using UnityEditor.Callbacks;
+using UnityEditor;
+using System.Collections;
+using System.Collections.Generic;
+using Mobcast.Coffee.Build;
+
+/// <summary>
+/// Custom Project Builder.
+/// #NAME#
+/// </summary>
+public class #SCRIPTNAME# : Mobcast.Coffee.Build.ProjectBuilder
+{
+	[SerializeField] string stringParameter;
+	[SerializeField] int intParameter;
+	[SerializeField] bool boolParameter;
+
+	/// <summary>
+	/// This method is called after applying project setting.
+	/// </summary>
+	protected override void OnApplySetting()
+	{
+		Debug.Log("OnApplySetting");
+		Debug.Log(stringParameter);
+		Debug.Log(intParameter);
+		Debug.Log(boolParameter);
+	}
+
+	/// <summary>
+	/// This method is called after building the player.
+	/// </summary>
+	[PostProcessBuild]
+	protected static void OnPostProcessBuild(BuildTarget target, string path)
+	{
+		#SCRIPTNAME# current = Util.currentBuilder as #SCRIPTNAME#;
+		Debug.Log("OnPostProcessBuild");
+		Debug.Log(current.stringParameter);
+		Debug.Log(current.intParameter);
+		Debug.Log(current.boolParameter);
+	}
+}

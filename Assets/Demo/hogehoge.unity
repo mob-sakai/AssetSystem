@@ -295,7 +295,6 @@ GameObject:
   m_Component:
   - component: {fileID: 117648009}
   - component: {fileID: 117648008}
-  - component: {fileID: 117648010}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -314,8 +313,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 27b67975efe604c7abebf3db1c899145, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  assetBundleName: image_001
-  assetName: image_001
+  assetBundleName: tank_a
+  assetName: tank_a
   resourceDomain: https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/
   resourceVersion: e033f50907cc57b0b9b737a5ba1066b88a604d0e/AssetBundles
   manifestName: Android
@@ -336,17 +335,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &117648010
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
-  m_GameObject: {fileID: 117648007}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd7db0f04005a44b29461bd66652f2f8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &163881151
 GameObject:
   m_ObjectHideFlags: 0
@@ -1329,7 +1317,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 5, y: -0.00001692772}
+  m_AnchoredPosition: {x: 5, y: -0.000043988228}
   m_SizeDelta: {x: -10, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &970121588
@@ -1660,7 +1648,7 @@ ParticleSystem:
   moveWithTransform: 0
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 1
-  randomSeed: -1714058942
+  randomSeed: -1035681442
   InitialModule:
     serializedVersion: 3
     enabled: 1
@@ -4462,7 +4450,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 117648008}
-        m_MethodName: Load
+        m_MethodName: LoadFromBundle
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4882,7 +4870,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 198396593}
   m_HandleRect: {fileID: 198396592}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
