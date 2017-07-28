@@ -9,7 +9,7 @@ namespace Mobcast.Coffee.AssetSystem
 			"Assets/Mobcast/Coffee/AssetSystem",
 		};
 
-		[MenuItem ("Coffee/Export Package/" + kPackageName)]
+		[MenuItem ("Export Package/" + kPackageName)]
 		[InitializeOnLoadMethod]
 		static void Export ()
 		{
