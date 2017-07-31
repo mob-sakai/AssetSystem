@@ -18,7 +18,6 @@ namespace Mobcast.Coffee.AssetSystem
 	class AssetManagerMenu : ScriptableSingleton<AssetManagerMenu>
 	{
 		[SerializeField] bool m_SimulationMode = true;
-		[SerializeField] bool m_LocalServerMode = false;
 
 		[SerializeField]
 		int m_ServerPID = 0;
@@ -191,7 +190,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			base.OnInspectorGUI();
 
-			var current = target as AssetManager;
+//			var current = target as AssetManager;
 			 
 			//			UIManager manager = target as UIManager;
 
@@ -202,8 +201,8 @@ namespace Mobcast.Coffee.AssetSystem
 				EditorGUILayout.Toggle("Local Server Mode", AssetManager.isLocalServerMode);
 
 
-				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_DomainURL"));
-				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Patch"));
+//				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_DomainURL"));
+//				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Patch"));
 
 
 //				EditorGUILayout.TextField("ドメインURL", AssetManager.domainURL);
@@ -213,10 +212,10 @@ namespace Mobcast.Coffee.AssetSystem
 
 				GUILayout.Label(string.Format("ランタイムキャッシュ : {0}", AssetManager.m_RuntimeCache.Count));
 				GUILayout.Label(string.Format("ロード済み : {0}", AssetManager.m_LoadedAssetBundles.Count));
-				if (AssetManager.Manifest)
+				if (AssetManager.manifest)
 				{
-					var m = AssetManager.Manifest;
-					var ar = AssetManager.Manifest.GetAllAssetBundles();
+					var m = AssetManager.manifest;
+					var ar = AssetManager.manifest.GetAllAssetBundles();
 					var count = ar.Count(x => Caching.IsVersionCached(x, m.GetAssetBundleHash(x)));
 					GUILayout.Label(string.Format("キャッシュ : {0}/{1}", count, ar.Length));
 				}

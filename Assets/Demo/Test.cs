@@ -59,7 +59,7 @@ public class Test : MonoBehaviour
 
 	public void LoadVersions()
 	{
-		AssetManager.UpdatePatchList(AssetManager.domainURL + "deploy/history.json");
+		AssetManager.UpdatePatchList(AssetManager.patchServerURL + "deploy/history.json");
 	}
 
 	public void ClearAll()

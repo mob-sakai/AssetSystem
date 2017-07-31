@@ -66,7 +66,8 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <summary>
 		/// Is the download already finished?
 		/// </summary>
-		public bool isDone { get; private set; }
+		public new bool isDone { get; private set; }
+
 
 		UnityWebRequest m_WebRequest;
 		MemoryStream m_Stream;

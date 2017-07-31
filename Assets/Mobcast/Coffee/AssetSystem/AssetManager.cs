@@ -39,23 +39,21 @@ namespace Mobcast.Coffee.AssetSystem
 		/// AssetBundleManifest object which can be used to load the dependecies
 		/// and check suitable assetBundle variants.
 		/// </summary>
-		public static AssetBundleManifest Manifest { set; get; }
+		public static AssetBundleManifest manifest { set; get; }
 
 		/// <summary>
 		/// The base downloading url which is used to generate the full
 		/// downloading url with the assetBundle names.
 		/// </summary>
-		public static string domainURL { get { return instance.m_DomainURL; } set { instance.m_DomainURL = value; } }
+		public static string patchServerURL { get; private set; }
+//		public static string patchServerURL { get { return instance.m_PatchServerURL; } set { instance.m_PatchServerURL = value; } }
+//
+//		[SerializeField] string m_PatchServerURL;
 
-		[SerializeField] string m_DomainURL;
-
-		//		public static string patch { get { return instance.m_PatchHash; } set { instance.m_PatchHash = value; } }
-		//
-		//		string m_PatchHash { set; get; }
-
-		public static Patch patch { get { return instance.m_Patch; } set { instance.m_Patch = value; } }
-
-		[SerializeField] Patch m_Patch;
+		public static Patch patch { get; private set; }
+//		public static Patch patch { get { return instance.m_Patch; } set { instance.m_Patch = value; } }
+//
+//		[SerializeField] Patch m_Patch;
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
@@ -90,7 +88,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			if (isLocalServerMode)
 			{
-				domainURL = "http://localhost:7888/";
+				patchServerURL = "http://localhost:7888/";
 				patch = new Patch(){ comment = "LocalServerMode", commitHash = Guid.NewGuid().ToString() };
 
 				Debug.LogWarning("ローカルサーバーモード中");
@@ -147,17 +145,17 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			bundle = null;
 
-			if (Manifest)
+			if (manifest)
 			{
 				AssetBundle ab;
-				foreach (var dep in Manifest.GetAllDependencies(name))
+				foreach (var dep in manifest.GetAllDependencies(name))
 				{
 					Debug.Log(dep + " : " + m_LoadedAssetBundles.TryGetValue(dep, out ab) + ", " + ab);
 				}
 			}
 			// TODO: cache dependancy!
 			// Loaded all dependancy.
-			if (!Manifest || Manifest.GetAllDependencies(name).All(m_LoadedAssetBundles.ContainsKey))
+			if (!manifest || manifest.GetAllDependencies(name).All(m_LoadedAssetBundles.ContainsKey))
 			{
 
 
@@ -177,7 +175,6 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <example>
 		public static void SetDomainURL(string url)
 		{
-
 			#if UNITY_EDITOR
 			if (isLocalServerMode)
 			{
@@ -189,7 +186,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (!url.EndsWith("/"))
 				url += "/";
 
-			instance.m_DomainURL = url;
+			patchServerURL = url;
 		}
 
 
@@ -210,19 +207,19 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			#endif
 
-			if (!Manifest)
+			if (!manifest)
 			{
 				Debug.LogWarning("no manifest");
 				return null;
 			}
 
 			IEnumerable<string> bundleNams = predicate != null
-			? Manifest.GetAllAssetBundles().Where(predicate)
-			: Manifest.GetAllAssetBundles();
+			? manifest.GetAllAssetBundles().Where(predicate)
+			: manifest.GetAllAssetBundles();
 
 			foreach (var name in bundleNams)
 			{
-				var hash = Manifest.GetAssetBundleHash(name);
+				var hash = manifest.GetAssetBundleHash(name);
 				bool cached = Caching.IsVersionCached(name, hash);
 				if (!cached)
 				{
@@ -292,13 +289,13 @@ namespace Mobcast.Coffee.AssetSystem
 
 			if (!isLoadingAssetBundleManifest)
 			{
-				if (!Manifest)
+				if (!manifest)
 				{
 					Debug.LogError("Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
 					return null;
 				}
 
-				foreach (var dependency in Manifest.GetAllDependencies(assetBundleName))
+				foreach (var dependency in manifest.GetAllDependencies(assetBundleName))
 				{
 					AddDepend(dependency, assetBundleName);
 					LoadAssetBundle(dependency, false);
@@ -313,13 +310,13 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 
 			string url = string.IsNullOrEmpty(patch.commitHash)
-			? domainURL + Platform + "/" + assetBundleName
-			: domainURL + patch.commitHash + "/" + Platform + "/" + assetBundleName;
+			? patchServerURL + Platform + "/" + assetBundleName
+			: patchServerURL + patch.commitHash + "/" + Platform + "/" + assetBundleName;
 		
 			#if UNITY_EDITOR
 			if (isLocalServerMode)
 			{
-				url = domainURL + Platform + "/" + assetBundleName;
+				url = patchServerURL + Platform + "/" + assetBundleName;
 			}
 			#endif
 
@@ -334,7 +331,7 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			else
 			{
-				request = UnityWebRequest.GetAssetBundle(url, Manifest.GetAssetBundleHash(assetBundleName), 0);
+				request = UnityWebRequest.GetAssetBundle(url, manifest.GetAssetBundleHash(assetBundleName), 0);
 			}
 			var op = new BundleLoadOperation(assetBundleName, request);
 			m_InProgressOperations.Add(op);
@@ -347,9 +344,9 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="assetBundleName">Asset bundle name.</param>
 		static protected void UnloadAssetBundleInternal(string assetBundleName, bool checkDependancy = true)
 		{
-			if (checkDependancy && Manifest)
+			if (checkDependancy && manifest)
 			{
-				foreach (var dependency in Manifest.GetAllDependencies(assetBundleName))
+				foreach (var dependency in manifest.GetAllDependencies(assetBundleName))
 				{
 					SubDepend(dependency, assetBundleName);
 				}
@@ -452,10 +449,10 @@ namespace Mobcast.Coffee.AssetSystem
 //			Debug.Assert(!isSumilationMode);
 
 			Debug.Log("update manifest. " + patch.commitHash);
-			var oldManifest = Manifest;
-			Manifest = manifest;
+			var oldManifest = manifest;
+			AssetManager.manifest = manifest;
 
-			if (!Manifest)
+			if (!manifest)
 			{
 				Debug.LogError("Failed to update manifest.");
 				return;
@@ -540,12 +537,12 @@ namespace Mobcast.Coffee.AssetSystem
 			Caching.CleanCache();
 #endif
 
-			if (!Manifest)
+			if (!manifest)
 				return;
 			
-			foreach (var bundleName in Manifest.GetAllAssetBundles())
+			foreach (var bundleName in manifest.GetAllAssetBundles())
 			{
-				ClearCachedAssetBundle(bundleName, Manifest.GetAssetBundleHash(bundleName));
+				ClearCachedAssetBundle(bundleName, manifest.GetAssetBundleHash(bundleName));
 			}
 		}
 
