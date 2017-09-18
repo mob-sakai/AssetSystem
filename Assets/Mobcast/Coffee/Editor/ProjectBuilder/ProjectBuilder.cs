@@ -60,7 +60,7 @@ namespace Mobcast.Coffee.Build
 			get
 			{
 				if(assetBundleBuild)
-					return "AssetBundles/" + BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
+					return "AssetBundles";
 				else if (buildTarget == BuildTarget.Android && !EditorUserBuildSettings.exportAsGoogleAndroidProject)
 					return "build.apk";
 				else
