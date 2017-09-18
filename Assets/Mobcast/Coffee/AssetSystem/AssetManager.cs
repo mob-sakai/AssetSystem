@@ -16,20 +16,16 @@ namespace Mobcast.Coffee.AssetSystem
 		#if UNITY_STANDALONE_OSX
 		public const string Platform = "OSX";
 
-
 #elif UNITY_STANDALONE_WIN
 		public const string Platform = "Windows";
-
 
 #elif UNITY_ANDROID
 		public const string Platform = "Android";
 		#elif UNITY_IOS || UNITY_IPHONE
 		public const string Platform = "iOS";
 
-
 #elif UNITY_WEBGL
 		public const string Platform = "WebGL";
-
 
 #else
 		public const string Platform = "Unknown";
@@ -46,14 +42,8 @@ namespace Mobcast.Coffee.AssetSystem
 		/// downloading url with the assetBundle names.
 		/// </summary>
 		public static string patchServerURL { get; private set; }
-//		public static string patchServerURL { get { return instance.m_PatchServerURL; } set { instance.m_PatchServerURL = value; } }
-//
-//		[SerializeField] string m_PatchServerURL;
 
 		public static Patch patch { get; private set; }
-//		public static Patch patch { get { return instance.m_Patch; } set { instance.m_Patch = value; } }
-//
-//		[SerializeField] Patch m_Patch;
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
@@ -61,10 +51,7 @@ namespace Mobcast.Coffee.AssetSystem
 		public static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>>();
 		static HashSet<string> m_Unloadable = new HashSet<string>();
 
-
 		public static StringBuilder errorLog = new StringBuilder();
-
-
 
 		public static PatchList patchList = new PatchList();
 
@@ -178,7 +165,7 @@ namespace Mobcast.Coffee.AssetSystem
 			#if UNITY_EDITOR
 			if (isLocalServerMode)
 			{
-				Debug.LogWarning("ローカルサーバーモード中");
+				Debug.LogWarning("ローカルサーバーモード中なので無視されました");
 				return;
 			}
 			#endif
@@ -189,6 +176,13 @@ namespace Mobcast.Coffee.AssetSystem
 			patchServerURL = url;
 		}
 
+		/// <summary>
+		/// Sets the domain URL to streaming assets.
+		/// </summary>
+		public static void SetDomainURLToStreamingAssets()
+		{
+			SetDomainURL(Application.streamingAssetsPath);
+		}
 
 		/// <summary>
 		/// Preloads the asset bundle.
