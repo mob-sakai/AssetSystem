@@ -11,18 +11,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: faf9e5a5972d8420ab6e88e89471f4a2, type: 3}
   m_Name: Builder_Android
   m_EditorClassIdentifier: 
+  applicationBuild: 1
   assetBundleBuild: 0
+  copyToStreamingAssets: 0
   bundleOptions: 0
-  buildTarget: 13
-  developmentBuild: 1
+  buildTarget: 0
+  developmentBuild: 0
   defineSymbols: 
-  productName: AssetSystem
-  companyName: mobcast
-  applicationIdentifier: com.mobcast.inhouse.testbuild2
-  version: 1.0
+  productName: 
+  companyName: 
+  applicationIdentifier: 
+  version: 
   versionCode: 0
   iosSettings:
-    automaticallySign: 1
+    automaticallySign: 0
     developerTeamId: 
     codeSignIdentity: 
     profileId: 

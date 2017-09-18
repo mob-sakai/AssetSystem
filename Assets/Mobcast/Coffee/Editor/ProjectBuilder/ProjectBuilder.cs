@@ -21,23 +21,18 @@ namespace Mobcast.Coffee.Build
 		//-------------------------------
 
 		/// <summary>Buid Application.</summary>
-		[Tooltip("Buid Application.")]
 		public bool applicationBuild = true;
 
 		/// <summary>Buid AssetBundle.</summary>
-		[Tooltip("Buid AssetBundle.")]
 		public bool assetBundleBuild;
 
 		/// <summary>copyToStreamingAssets.</summary>
-		[Tooltip("copyToStreamingAssets.")]
 		public bool copyToStreamingAssets;
 
 		/// <summary>AssetBundle options.</summary>
-		[Tooltip("AssetBundle options.")]
 		public BuildAssetBundleOptions bundleOptions;
 
 		/// <summary>ビルドプラットフォームを指定します.</summary>
-		[Tooltip("ビルドプラットフォームを指定します.")]
 		public BuildTarget buildTarget;
 
 		/// <summary>Build target group for this builder asset.</summary>

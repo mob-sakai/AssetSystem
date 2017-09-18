@@ -208,7 +208,7 @@ namespace Mobcast.Coffee.Build
 		{
 			if (InternalEditorUtility.inBatchMode)
 				return;
-
+			
 			var parent = Path.GetDirectoryName(path);
 			EditorUtility.RevealInFinder(
 				(Directory.Exists(path) || File.Exists(path)) ? path : 

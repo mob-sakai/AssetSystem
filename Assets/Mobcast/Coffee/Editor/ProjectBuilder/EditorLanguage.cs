@@ -10,6 +10,7 @@ namespace Mobcast.Coffee.Build
 {
 	public static class EditorLanguage
 	{
+		static readonly Dictionary<string, GUIContent> s_Contents = new Dictionary<string, GUIContent>();
 		static readonly string s_CsvFileName = typeof(EditorLanguage).FullName + ".csv";
 		static readonly string s_SystemLanguage = Application.systemLanguage.ToString();
 
@@ -32,36 +33,91 @@ namespace Mobcast.Coffee.Build
 			}
 		}
 
+		static EditorLanguage()
+		{
+			Initialize ();
+		}
+
 
 		public static void Initialize()
 		{
-			using (var stream = GetStream())
-			{
-				UpdateSupportedLanguages(stream);
-				UpdateTerms(stream);
+			s_Contents.Clear ();
+
+			using (var stream = new StreamReader(GetLanguageFilePath (), Encoding.UTF8)) {
+				UpdateSupportedLanguages (stream);
+				UpdateTerms (stream);
 			}
 		}
 
-		static StreamReader GetStream()
+		static string GetLanguageFilePath()
 		{
-			var csvPath = AssetDatabase.FindAssets("t:TextAsset " + Path.GetFileNameWithoutExtension(s_CsvFileName))
+			string csvPath = AssetDatabase.FindAssets("t:TextAsset " + Path.GetFileNameWithoutExtension(s_CsvFileName))
 				.Select(guid => AssetDatabase.GUIDToAssetPath(guid))
-				.FirstOrDefault(path => Path.GetFileName(path) == s_CsvFileName);
+				.FirstOrDefault(path => Path.GetFileName(path) == s_CsvFileName) ?? "";
 
-			if (string.IsNullOrEmpty(csvPath))
+			if(csvPath.Length == 0)
 			{
 				UnityEngine.Debug.LogWarningFormat("Language file '{0}' is not found in project.", s_CsvFileName);
-				return null;
 			}
-
-			return new StreamReader(csvPath, Encoding.UTF8);
+			return csvPath;
 		}
 
-		public static string Get(string key)
+//		static StreamReader GetStream()
+//		{
+//			var csvPath = GetLanguageFilePath ();
+//
+//			if (string.IsNullOrEmpty(csvPath))
+//			{
+//				UnityEngine.Debug.LogWarningFormat("Language file '{0}' is not found in project.", s_CsvFileName);
+//				return null;
+//			}
+//
+//			return new StreamReader(csvPath, Encoding.UTF8);
+//		}
+
+		public static string Get(string key, string defaultValue = null)
 		{
 			string ret;
-			return s_Terms.TryGetValue(key, out ret) ? ret : key;
+			if (!string.IsNullOrEmpty (key) && s_Terms.TryGetValue (key, out ret))
+				return ret;
+			else if (defaultValue != null)
+				return defaultValue;
+			else
+				return key;
 		}
+
+
+		public static GUIContent GetContent(string label, string tooltip="")
+		{
+			GUIContent c;
+			if (!s_Contents.TryGetValue (label, out c))
+			{
+				c = new GUIContent (Get (label), Get (tooltip, ""));
+				s_Contents.Add (label, c);
+			}
+			return c;
+		}
+
+		public static GUIContent GetContent(string label, Texture icon)
+		{
+			GUIContent c;
+			if (!s_Contents.TryGetValue (label, out c))
+			{
+				c = new GUIContent (Get (label), icon);
+				s_Contents.Add (label, c);
+			}
+			return c;
+		}
+
+
+		public static GUIContent GetContent(SerializedProperty property)
+		{
+			GUIContent c;
+			return s_Contents.TryGetValue(property.name, out c)
+					? c
+					: GetContent (property.name, property.name+"_tooltip");
+		}
+
 
 		static void UpdateSupportedLanguages(StreamReader stream)
 		{
@@ -82,10 +138,10 @@ namespace Mobcast.Coffee.Build
 			while (!stream.EndOfStream)
 			{
 				var strs = stream.ReadLine().Split('\t');
-				if (strs.Length <= languageId || strs[0].Length == 0)
+				if (strs[0].Length == 0)
 					continue;
 
-				s_Terms[strs[0]] = strs[languageId];
+				s_Terms[strs[0]] = languageId < strs.Length ? strs[languageId] : strs[0];
 			}
 		}
 
@@ -95,7 +151,7 @@ namespace Mobcast.Coffee.Build
 		/// </summary>
 		public static void AddItemsToMenu(GenericMenu menu)
 		{
-			using (var stream = GetStream())
+			using (var stream = new StreamReader(GetLanguageFilePath (), Encoding.UTF8))
 			{
 				UpdateSupportedLanguages(stream);
 			}
@@ -107,6 +163,30 @@ namespace Mobcast.Coffee.Build
 			{
 				menu.AddItem(new GUIContent("Language/" + lang), lang == current, l => currentLanguage = (l as string), lang);
 			}
+			menu.AddSeparator("Language/");
+			menu.AddItem(new GUIContent("Edit Language File"), false, EditLanguageFile);
+		}
+
+		public static void EditLanguageFile()
+		{
+			string path = GetLanguageFilePath ();
+			if (string.IsNullOrEmpty (path))
+				return;
+
+//			using (var stream = new StreamWriter(path, true, Encoding.UTF8))
+//			{
+//				var keys = s_Contents.Keys
+//					.Where (key => !string.IsNullOrEmpty (key) && !s_Terms.ContainsKey (key))
+//					.Distinct ();
+//
+//				foreach (var key in keys)
+//				{
+//					stream.WriteLine (key);
+//					stream.WriteLine (key+"_tooltip");
+//				}
+//			}
+//			Initialize ();
+//			EditorUtility.OpenWithDefaultApp (path);
 		}
 	}
 }

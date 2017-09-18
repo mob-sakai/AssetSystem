@@ -1,2 +1,61 @@
 Key	English	Japanese
-HOGE	hoge	ほげ
+applicationBuild	Application Build	アプリをビルド
+applicationBuild_tooltip	Enable building application	アプリのビルドを有効化します
+Build Setting		ビルド設定
+Build Setting_tooltip		ビルド設定
+assetBundleBuild		アセットバンドルのビルド
+assetBundleBuild_tooltip		アセットバンドルのビルドを有効化します
+buildTarget		プラットフォーム
+buildTarget_tooltip		プラットフォームを選択します
+iOS		iOSビルド設定
+iOS_tooltip		iOSプラットフォームのビルド設定
+companyName		会社名
+companyName_tooltip		会社名を指定します
+productName		アプリ名
+productName_tooltip		アプリ名を指定します
+applicationIdentifier		
+applicationIdentifier_tooltip		
+developmentBuild		
+developmentBuild_tooltip		
+defineSymbols		
+defineSymbols_tooltip		
+version		
+version_tooltip		
+Build Number		
+Build Number_tooltip		
+iOS Settings		
+iOS Settings_tooltip		
+languages		
+languages_tooltip		
+frameworks		
+frameworks_tooltip		
+services		
+services_tooltip		
+entitlementsFile		
+entitlementsFile_tooltip		
+Signing		
+Signing_tooltip		
+automaticallySign		
+automaticallySign_tooltip		
+developerTeamId		
+developerTeamId_tooltip		
+exportOptions.plist Setting		
+exportOptions.plist Setting_tooltip		
+Generate Automatically		
+Generate Automatically_tooltip		
+Apply Setting		
+Apply Setting_tooltip		
+Player Setting		
+Player Setting_tooltip		
+Build		
+Build_tooltip		
+Build & Run		
+Build & Run_tooltip		
+Create Custom Project Builder Script		
+Create Custom Project Builder Script_tooltip		
+Available Project Builders		
+Available Project Builders_tooltip		
+Builder_Android (AssetSystem)		
+Builder_Android (AssetSystem)_tooltip		
+Builder_AssetBundle [AssetBundleBuild]		
+Builder_AssetBundle [AssetBundleBuild]_tooltip		
