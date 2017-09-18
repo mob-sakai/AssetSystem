@@ -133,6 +133,13 @@ namespace Mobcast.Coffee.Build
 		{
 			Initialize();
 
+			if (GUILayout.Button("Lang"))
+			{
+				var gm = new GenericMenu();
+				EditorLanguage.AddItemsToMenu(gm);
+				gm.ShowAsContext();
+			}
+
 			serializedObject.Update();
 			var builder = target as ProjectBuilder;
 
