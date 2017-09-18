@@ -22,11 +22,11 @@ namespace Mobcast.Coffee.Build
 
 		/// <summary>Buid Application.</summary>
 		[Tooltip("Buid Application.")]
-		public bool applicationBuild = true;
+		public bool buildApplication = true;
 
 		/// <summary>Buid AssetBundle.</summary>
 		[Tooltip("Buid AssetBundle.")]
-		public bool assetBundleBuild;
+		public bool buildAssetBundle;
 
 		/// <summary>copyToStreamingAssets.</summary>
 		[Tooltip("copyToStreamingAssets.")]
@@ -69,7 +69,7 @@ namespace Mobcast.Coffee.Build
 		{
 			get
 			{
-				if(!applicationBuild && assetBundleBuild)
+				if(!buildApplication && buildAssetBundle)
 					return "AssetBundles";
 				else if (buildTarget == BuildTarget.Android && !EditorUserBuildSettings.exportAsGoogleAndroidProject)
 					return "build.apk";
@@ -151,7 +151,7 @@ namespace Mobcast.Coffee.Build
 		/// </summary>
 		public bool DefineSymbol()
 		{
-			if (assetBundleBuild)
+			if (buildAssetBundle)
 				return false;
 			
 			var oldDefineSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
@@ -188,7 +188,7 @@ namespace Mobcast.Coffee.Build
 		/// </summary>
 		public void ApplySettings()
 		{
-			if (assetBundleBuild)
+			if (buildAssetBundle)
 				return;
 			
 			//ビルド情報を設定します.
@@ -233,7 +233,7 @@ namespace Mobcast.Coffee.Build
 		public bool BuildPlayer(bool autoRunPlayer)
 		{
 			bool success = false;
-			if (assetBundleBuild)
+			if (buildAssetBundle)
 			{
 				Directory.CreateDirectory(kAssetBundleOutputPath);
 				var manifest = BuildPipeline.BuildAssetBundles(kAssetBundleOutputPath, bundleOptions, buildTarget);
@@ -247,7 +247,7 @@ namespace Mobcast.Coffee.Build
 				success = true;
 			}
 
-			if (applicationBuild)
+			if (buildApplication)
 			{
 				// Build options.
 				BuildOptions opt = developmentBuild ? (BuildOptions.Development & BuildOptions.AllowDebugging) : BuildOptions.None

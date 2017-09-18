@@ -11,8 +11,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: faf9e5a5972d8420ab6e88e89471f4a2, type: 3}
   m_Name: Builder_Android
   m_EditorClassIdentifier: 
-  assetBundleBuild: 0
-  bundleOptions: 0
+  buildApplication: 1
+  buildAssetBundle: 1
+  copyToStreamingAssets: 1
+  bundleOptions: 18
   buildTarget: 13
   developmentBuild: 1
   defineSymbols: 
