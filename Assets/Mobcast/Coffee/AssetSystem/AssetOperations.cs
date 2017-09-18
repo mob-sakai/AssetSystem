@@ -204,7 +204,7 @@ namespace Mobcast.Coffee.AssetSystem
 				var pathes = !string.IsNullOrEmpty(bundleName)
 					? UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
 					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, assetName))
-						.Select(UnityEditor.AssetDatabase.GUIDToAssetPath)
+						.Select(guid=>UnityEditor.AssetDatabase.GUIDToAssetPath(guid))
 						.ToArray();
 				var asset = pathes.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type)).FirstOrDefault();
 				if (asset)
