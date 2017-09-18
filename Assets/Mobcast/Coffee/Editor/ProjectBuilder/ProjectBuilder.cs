@@ -13,14 +13,24 @@ namespace Mobcast.Coffee.Build
 	public class ProjectBuilder : ScriptableObject
 	{
 		public const string kLogType = "#### [ProjectBuilder] ";
+		public const string kAssetBundleOutputPath = "AssetBundles";
+
 
 		//-------------------------------
 		//	ビルド概要.
 		//-------------------------------
 
+		/// <summary>Buid Application.</summary>
+		[Tooltip("Buid Application.")]
+		public bool applicationBuild = true;
+
 		/// <summary>Buid AssetBundle.</summary>
 		[Tooltip("Buid AssetBundle.")]
 		public bool assetBundleBuild;
+
+		/// <summary>copyToStreamingAssets.</summary>
+		[Tooltip("copyToStreamingAssets.")]
+		public bool copyToStreamingAssets;
 
 		/// <summary>AssetBundle options.</summary>
 		[Tooltip("AssetBundle options.")]
@@ -59,7 +69,7 @@ namespace Mobcast.Coffee.Build
 		{
 			get
 			{
-				if(assetBundleBuild)
+				if(!applicationBuild && assetBundleBuild)
 					return "AssetBundles";
 				else if (buildTarget == BuildTarget.Android && !EditorUserBuildSettings.exportAsGoogleAndroidProject)
 					return "build.apk";
@@ -222,36 +232,47 @@ namespace Mobcast.Coffee.Build
 		/// <param name="autoRunPlayer">Build & Runモードでビルドします.</param>
 		public bool BuildPlayer(bool autoRunPlayer)
 		{
+			bool success = false;
 			if (assetBundleBuild)
 			{
-				if (!Directory.Exists(outputPath))
-					Directory.CreateDirectory(outputPath);
-				BuildPipeline.BuildAssetBundles(outputPath, bundleOptions, buildTarget);
-				return true;
+				Directory.CreateDirectory(kAssetBundleOutputPath);
+				var manifest = BuildPipeline.BuildAssetBundles(kAssetBundleOutputPath, bundleOptions, buildTarget);
+
+				var copyPath = Path.Combine(Application.streamingAssetsPath, kAssetBundleOutputPath);
+				if (!string.IsNullOrEmpty(copyPath))
+				{
+					FileUtil.CopyFileOrDirectory(kAssetBundleOutputPath, copyPath);
+				}
+
+				success = true;
 			}
 
-			// Build options.
-			BuildOptions opt = developmentBuild ? (BuildOptions.Development & BuildOptions.AllowDebugging) : BuildOptions.None
-			                   | (autoRunPlayer ? BuildOptions.AutoRunPlayer : BuildOptions.None);
-
-			// Scenes to build.
-			string[] scenes = EditorBuildSettings.scenes.Where(x => x.enabled).Select(x => x.path).ToArray();
-
-			// Start build.
-			UnityEngine.Debug.Log(kLogType + "BuildPlayer is started. Defined symbols : " + PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup));
-			string errorMsg = BuildPipeline.BuildPlayer(scenes, outputFullPath, buildTarget, opt);
-
-			if (string.IsNullOrEmpty(errorMsg))
+			if (applicationBuild)
 			{
-				UnityEngine.Debug.Log(kLogType + "BuildPlayer is finished successfuly.");
-				Util.RevealOutputInFinder(outputFullPath);
-				return true;
+				// Build options.
+				BuildOptions opt = developmentBuild ? (BuildOptions.Development & BuildOptions.AllowDebugging) : BuildOptions.None
+				                  | (autoRunPlayer ? BuildOptions.AutoRunPlayer : BuildOptions.None);
+
+				// Scenes to build.
+				string[] scenesToBuild = EditorBuildSettings.scenes.Where(x => x.enabled).Select(x => x.path).ToArray();
+
+				// Start build.
+				UnityEngine.Debug.Log(kLogType + "BuildPlayer is started. Defined symbols : " + PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup));
+				string errorMsg = BuildPipeline.BuildPlayer(scenesToBuild, outputFullPath, buildTarget, opt);
+
+				if (string.IsNullOrEmpty(errorMsg))
+				{
+					UnityEngine.Debug.Log(kLogType + "BuildPlayer is finished successfuly.");
+					Util.RevealOutputInFinder(outputFullPath);
+					success = true;
+				}
+				else
+				{
+					UnityEngine.Debug.LogError(kLogType + "BuildPlayer is failed : " + errorMsg);
+					success = false;
+				}
 			}
-			else
-			{
-				UnityEngine.Debug.LogError(kLogType + "BuildPlayer is failed : " + errorMsg);
-				return false;
-			}
+			return success;
 		}
 
 		/// <summary>
