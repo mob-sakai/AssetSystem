@@ -18,7 +18,7 @@ MonoBehaviour:
   buildTarget: 13
   developmentBuild: 1
   defineSymbols: 
-  productName: AssetSystem
+  productName: AS AB
   companyName: mobcast
   applicationIdentifier: com.mobcast.inhouse.testbuild2
   version: 1.0
