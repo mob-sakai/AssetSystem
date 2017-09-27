@@ -124,7 +124,7 @@ namespace Mobcast.Coffee.AssetSystem
 			#if UNITY_EDITOR
 			// ローカルパッチサーバを起動
 			// Start local patch server.
-			if (isLocalServerMode)
+			if (!isLocalServerMode)
 				UnityEditor.EditorApplication.ExecuteMenuItem(MenuText_LocalServerMode);
 			#endif
 
@@ -144,7 +144,7 @@ namespace Mobcast.Coffee.AssetSystem
 			Debug.LogWarningFormat("{0}シミュレーションモードに設定しました", kLog);
 
 			#if UNITY_EDITOR
-			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, false);
+			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
 			#endif
 		}
 

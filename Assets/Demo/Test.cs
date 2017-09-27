@@ -13,8 +13,6 @@ public class Test : MonoBehaviour
 	public Text textSummary;
 
 	[Header("サーバー")]
-	public Text textServerURL;
-
 	public Toggle toggleServerLocal;
 	public Toggle toggleServerSimulation;
 	public Toggle toggleServerCloud;
@@ -30,65 +28,36 @@ public class Test : MonoBehaviour
 	public GameObject goLoading;
 	public GameObject goBusy;
 
-
-	public const string AssetBundlesOutputPath = "/AssetBundles/";
-	public string assetBundleName;
-	public string assetName;
-
-	public string resourceDomain = "https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/";
-	public string resourceVersion = "e033f50907cc57b0b9b737a5ba1066b88a604d0e";
-	public string manifestName = "Android";
-
-
-	public Image image;
+	[Header("ロード")]
 	public RawImage rawimage;
 
-	public Text m_Log;
-	public Text m_Progress;
 
-
-	public void SetSourceAssetBundleURL()
+	void Start()
 	{
-		AssetManager.SetPatchServerURL(resourceDomain);
+		prefabPatch.SetActive(false);
+
+		toggleServerCloud.isOn = true;
+
+		toggleServerLocal.gameObject.SetActive(Application.isEditor);
+		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
+
+		#if UNITY_EDITOR
+		if (AssetManager.isLocalServerMode)
+			toggleServerLocal.isOn = true;
+		else if (AssetManager.isSimulationMode)
+			toggleServerSimulation.isOn = true;
+		#endif
+
+		OnClick_SelectServer();
+
+		InvokeRepeating("UpdateSummary", 0, 1);
 	}
 
-
-	public void UpdateManifest()
+	void Update()
 	{
-		AssetManager.SetPatch(AssetManager.patch);
-	}
-
-	public void LoadAll()
-	{
-		AssetManager.PreDownload();
-
-	}
-
-	public void LoadFromBundle()
-	{
-		AssetManager.AddDepend("common", "keep");
-		AssetManager.LoadAssetAsync<GameObject>(assetBundleName, assetName, obj => GameObject.Instantiate(obj));
-	}
-
-	public void LoadFromResources()
-	{
-		AssetManager.LoadAssetAsync<Sprite>(assetName, obj => image.sprite = obj);
-	}
-
-	public void LoadFromWeb()
-	{
-		AssetManager.LoadAssetAsync<Texture2D>("https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.mbl.mobcast.io/image/shop/order/BNR_order_0001.png", img => rawimage.texture = img);
-	}
-
-
-	public void LoadVersions()
-	{
-		AssetManager.UpdatePatchList(AssetManager.patchServerURL + "history.json");
-	}
-
-	public void ClearAll()
-	{
-		AssetManager.ClearAll();
+		goDownloading.SetActive(AssetManager.m_InProgressOperations.Any(op => op is BundleLoadOperation));
+		goLoading.SetActive(AssetManager.m_InProgressOperations.Any(op => op is AssetLoadOperation));
+		goBusy.SetActive(AssetManager.m_InProgressOperations.Any());
 	}
 
 	public void OnClick_SelectServer()
@@ -112,44 +81,18 @@ public class Test : MonoBehaviour
 		{
 			AssetManager.SetPatchServerURLToStreamingAssets();
 		}
-		textServerURL.text = AssetManager.patchServerURL;
 		textCurrentPatch.text = AssetManager.patch.ToString();
 
 		//パッチリストの更新.
 		OnClick_UpdatePatchList();
 	}
 
-	void Start()
-	{
-
-		prefabPatch.SetActive(false);
-		toggleServerCloud.isOn = true;
-
-		toggleServerLocal.gameObject.SetActive(Application.isEditor);
-		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
-
-		#if UNITY_EDITOR
-		toggleServerLocal.isOn = AssetManager.isLocalServerMode;
-		toggleServerSimulation.isOn = AssetManager.isSimulationMode;
-		#endif
-
-		OnClick_SelectServer();
-
-
-		InvokeRepeating("UpdateSummary", 1, 1);
-	}
 
 	void UpdateSummary()
 	{
 		textSummary.text = AssetManager.instance.ToString();
 	}
 
-	void Update()
-	{
-		goDownloading.SetActive(AssetManager.m_InProgressOperations.Any(op => op is BundleLoadOperation));
-		goLoading.SetActive(AssetManager.m_InProgressOperations.Any(op => op is AssetLoadOperation));
-		goBusy.SetActive(AssetManager.m_InProgressOperations.Any());
-	}
 
 	/// <summary>
 	/// パッチリストの更新
@@ -167,7 +110,7 @@ public class Test : MonoBehaviour
 		string path = AssetManager.patchServerURL + "history.json";
 		AssetManager.UpdatePatchList(path, list =>
 			{
-				if(list == null || list.patchList.Length == 0)
+				if (list == null || list.patchList.Length == 0)
 				{
 					Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
 					return;
@@ -237,14 +180,5 @@ public class Test : MonoBehaviour
 	public void OnClick_LoadImage(string path)
 	{
 		AssetManager.LoadAssetAsync<Texture2D>(path, img => rawimage.texture = img);
-	}
-
-	public void OnClick_LoadTank(string path)
-	{
-		AssetManager.AddDepend("common", "keep");
-		AssetManager.LoadAssetAsync<GameObject>(assetBundleName, assetName, obj =>
-			{
-				var go = Object.Instantiate(obj);
-			});
 	}
 }

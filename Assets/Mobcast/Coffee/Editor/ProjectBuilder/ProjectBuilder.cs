@@ -244,7 +244,7 @@ namespace Mobcast.Coffee.Build
 
 				Directory.CreateDirectory(bundleOutputPath);
 				BuildAssetBundleOptions opt = (BuildAssetBundleOptions)bundleOptions | BuildAssetBundleOptions.DeterministicAssetBundle;
-				var manifest = BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, buildTarget);
+				BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, buildTarget);
 
 				if (copyToStreamingAssets)
 				{

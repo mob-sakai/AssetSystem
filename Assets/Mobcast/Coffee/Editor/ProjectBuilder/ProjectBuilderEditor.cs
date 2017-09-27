@@ -17,8 +17,6 @@ namespace Mobcast.Coffee.Build
 	/// インスペクタをオーバーライドして、ビルド設定エディタを構成します.
 	/// エディタから直接ビルドパイプラインを実行できます.
 	/// </summary>
-	[CanEditMultipleObjects]
-	[CustomEditor(typeof(ProjectBuilder), true)]
 	internal class ProjectBuilderEditor : EditorWindow
 	{
 		public ProjectBuilder target;
