@@ -51,6 +51,13 @@ public class Test : MonoBehaviour
 		OnClick_SelectServer();
 
 		InvokeRepeating("UpdateSummary", 0, 1);
+
+
+		var buildManifest = Resources.Load<TextAsset>("UnityCloudBuildManifest.scriptable");
+		if(buildManifest)
+		{
+			Debug.Log(buildManifest.text);
+		}
 	}
 
 	void Update()
