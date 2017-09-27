@@ -115,18 +115,17 @@ namespace Mobcast.Coffee.AssetSystem
 			yield break;
 		}
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// ローカルサーバーモードに設定します.
 		/// Sets the local server mode.
 		/// </summary>
 		public static void EnableLocalServerMode()
 		{
-			#if UNITY_EDITOR
 			// ローカルパッチサーバを起動
 			// Start local patch server.
 			if (!isLocalServerMode)
 				UnityEditor.EditorApplication.ExecuteMenuItem(MenuText_LocalServerMode);
-			#endif
 
 			patchServerURL = "http://localhost:7888/";
 			patch = new Patch(){ comment = "LocalServerMode", commitHash = "" };
@@ -143,10 +142,9 @@ namespace Mobcast.Coffee.AssetSystem
 			patch = new Patch(){ comment = "SimulationMode", commitHash = "" };
 			Debug.LogWarningFormat("{0}シミュレーションモードに設定しました", kLog);
 
-			#if UNITY_EDITOR
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
-			#endif
 		}
+#endif
 
 		void Update()
 		{
@@ -185,15 +183,6 @@ namespace Mobcast.Coffee.AssetSystem
 		public static bool TryGetBundle(string name, out AssetBundle bundle)
 		{
 			bundle = null;
-
-//			if (manifest)
-//			{
-//				AssetBundle ab;
-//				foreach (var dep in manifest.GetAllDependencies(name))
-//				{
-//					Debug.Log(dep + " : " + m_LoadedAssetBundles.TryGetValue(dep, out ab) + ", " + ab);
-//				}
-//			}
 
 			// 依存しているアセットバンドルを全てロード済みか.
 			// TODO: cache dependancy!
@@ -578,7 +567,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
-					Debug.Log("パッチリストの更新　ロード完了 " + txt + "," + txt ? txt.text : "{}");
+				Debug.Log("パッチリストの更新　ロード完了 " + txt + "," + (txt ? txt.text : "{}"));
 					patchList = new PatchList();
 
 					try
