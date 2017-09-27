@@ -14,7 +14,7 @@ MonoBehaviour:
   buildApplication: 1
   buildAssetBundle: 1
   copyToStreamingAssets: 1
-  bundleOptions: 0
+  bundleOptions: 1
   buildTarget: 13
   developmentBuild: 1
   defineSymbols: 
