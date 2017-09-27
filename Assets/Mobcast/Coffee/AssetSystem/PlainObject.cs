@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using System;
 
 namespace Mobcast.Coffee.AssetSystem
 {
@@ -29,6 +30,19 @@ namespace Mobcast.Coffee.AssetSystem
 		public string comment;
 		public string commitHash;
 		public long deployTime;
+
+		public override string ToString()
+		{
+			string hash = (commitHash != null && 4 < commitHash.Length)
+				? commitHash.Substring(0, 4)
+				: commitHash;
+
+			return string.Format("{0:MM/dd hh:mm} {1} {2}",
+				DateTime.FromFileTime(deployTime).ToLocalTime(),
+				hash,
+				comment
+			);
+		}
 	}
 
 
@@ -51,5 +65,41 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public Patch[] patchList = new Patch[0];
 		[System.NonSerialized] public Patch leatestPatch;
+	}
+
+
+	[System.Serializable]
+	public class BuildManifest
+	{
+		public static BuildManifest Load()
+		{
+			var json = Resources.Load<TextAsset>("UnityCloudBuildManifest.json") ?? Resources.Load<TextAsset>("BuildManifest.json");
+			if (json == null)
+			{
+				return new BuildManifest();
+			}
+			else
+			{
+				return JsonUtility.FromJson<BuildManifest>(json.text);
+			}
+		}
+
+		public string scmCommitId;
+
+		public string scmBranch;
+
+		public string buildNumber;
+
+		public string buildStartTime;
+
+		public string projectId;
+
+		public string bundleId;
+
+		public string unityVersion;
+
+		public string xcodeVersion;
+
+		public string cloudBuildTargetName;
 	}
 }

@@ -6,10 +6,4 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/AssetBundleSample/Scenes/AssetLoader.unity
-  - enabled: 0
-    path: Assets/AssetBundleSample/Scenes/SceneLoader.unity
-  - enabled: 0
-    path: Assets/AssetBundleSample/Scenes/VariantLoader.unity
-  - enabled: 0
-    path: Assets/AssetBundleSample/Scenes/TanksLoader.unity
+    path: Assets/Demo/hogehoge.unity

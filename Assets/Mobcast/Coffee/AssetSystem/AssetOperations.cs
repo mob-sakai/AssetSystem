@@ -199,13 +199,14 @@ namespace Mobcast.Coffee.AssetSystem
 
 #if UNITY_EDITOR
 			// Simulation mode (only in editor).
-			if (AssetManager.isSumilationMode && !assetName.Contains("://"))
+			if (AssetManager.isSimulationMode && !assetName.Contains("://"))
 			{
 				var pathes = !string.IsNullOrEmpty(bundleName)
 					? UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
 					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, assetName))
 						.Select(guid=>UnityEditor.AssetDatabase.GUIDToAssetPath(guid))
 						.ToArray();
+				
 				var asset = pathes.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type)).FirstOrDefault();
 				if (asset)
 				{

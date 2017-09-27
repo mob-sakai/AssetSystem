@@ -57,6 +57,7 @@ namespace Mobcast.Coffee.Build
 
 		/// <summary>On finished compile callback.</summary>
 		[SerializeField] bool m_BuildAndRun = false;
+		[SerializeField] bool m_BuildAssetBundle = false;
 
 
 		/// <summary>コンパイル完了時に呼び出されるメソッド.</summary>
@@ -223,10 +224,11 @@ namespace Mobcast.Coffee.Build
 		/// <summary>
 		/// Registers the builder.
 		/// </summary>
-		public static void StartBuild(ProjectBuilder builder, bool buildAndRun)
+		public static void StartBuild(ProjectBuilder builder, bool buildAndRun, bool buildAssetBundle)
 		{
 			currentBuilder = builder;
 			instance.m_BuildAndRun = buildAndRun;
+			instance.m_BuildAssetBundle = buildAssetBundle;
 
 			// When script symbol has changed, resume to build after compile finished.
 			if (builder.DefineSymbol())
@@ -253,7 +255,10 @@ namespace Mobcast.Coffee.Build
 				if (compileSuccessfully && currentBuilder)
 				{
 					currentBuilder.ApplySettings();
-					success = currentBuilder.BuildPlayer(instance.m_BuildAndRun);
+					if(instance.m_BuildAssetBundle)
+						success = currentBuilder.BuildAssetBundles();
+					else
+						success = currentBuilder.BuildPlayer(instance.m_BuildAndRun);
 				}
 			}
 			catch (Exception ex)

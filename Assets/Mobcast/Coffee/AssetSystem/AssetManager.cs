@@ -6,27 +6,25 @@ using System.Linq;
 using UnityEngine.Networking;
 using Object = UnityEngine.Object;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Mobcast.Coffee.AssetSystem
 {
 
 	public class AssetManager : MonoSingleton<AssetManager>
 	{
+		public const string kLog = "[AssetManager] ";
 
-		#if UNITY_STANDALONE_OSX
+#if UNITY_STANDALONE_OSX
 		public const string Platform = "OSX";
-
 #elif UNITY_STANDALONE_WIN
 		public const string Platform = "Windows";
-
 #elif UNITY_ANDROID
 		public const string Platform = "Android";
-		#elif UNITY_IOS || UNITY_IPHONE
+#elif UNITY_IOS || UNITY_IPHONE
 		public const string Platform = "iOS";
-
 #elif UNITY_WEBGL
 		public const string Platform = "WebGL";
-
 #else
 		public const string Platform = "Unknown";
 #endif
@@ -41,7 +39,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// The base downloading url which is used to generate the full
 		/// downloading url with the assetBundle names.
 		/// </summary>
-		public static string patchServerURL { get; private set; }
+		public static string patchServerURL { get; set; }
 
 		public static Patch patch { get; private set; }
 
@@ -55,41 +53,60 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static PatchList patchList = new PatchList();
 
+
+
 		#if UNITY_EDITOR
 		public const string MenuText_Root = "Coffee/AsssetSystem";
-		public const string MenuText_SumilationMode = MenuText_Root + "/Simulation Mode";
-		public const string MenuText_LocalServerMode = MenuText_Root + "/Local Server Mode";
+		public const string MenuText_SimulationMode = MenuText_Root + "/AssetBundle Mode/Simulation (Editor)";
+		public const string MenuText_LocalServerMode = MenuText_Root + "/AssetBundle Mode/In Local Server (Editor)";
+		public const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
 		public const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
-		public static bool isSumilationMode = false;
-		public static bool isLocalServerMode = false;
+
+		public static bool isSimulationMode { get { return UnityEditor.Menu.GetChecked(AssetManager.MenuText_SimulationMode); } }
+
+		public static bool isLocalServerMode { get { return UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode); } }
+
+		//		public static bool isStreamingAssetsMode { get { return UnityEditor.Menu.GetChecked(AssetManager.MenuText_StreamingAssets); } }
 		#endif
+
+		public override string ToString()
+		{
+			var assetbundleNames = AssetManager.manifest ? AssetManager.manifest.GetAllAssetBundles() : new string[0];
+			var downloadedCount = AssetManager.manifest ? assetbundleNames.Count(x => Caching.IsVersionCached(x, AssetManager.manifest.GetAssetBundleHash(x))) : 0;
+
+			return string.Format("{0}\nパッチサーバーURL : {6}\n現在のパッチ : {7}\nディスク使用量 : {1}\nランタイムキャッシュ : {2}\nロード済みアセットバンドル : {3}\nダウンロード済みアセットバンドル{4}/{5}",
+				kLog,
+				Caching.spaceOccupied,
+				AssetManager.m_RuntimeCache.Count,
+				AssetManager.m_LoadedAssetBundles.Count,
+				downloadedCount,
+				assetbundleNames.Length,
+				patchServerURL,
+				patch
+			);
+		}
 
 		IEnumerator Start()
 		{
 			yield return new WaitUntil(() => Caching.ready);
 
 			#if UNITY_EDITOR
-			isLocalServerMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode);
-			isSumilationMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_SumilationMode);
-
-
 			if (isLocalServerMode)
 			{
-				patchServerURL = "http://localhost:7888/";
-				patch = new Patch(){ comment = "LocalServerMode", commitHash = Guid.NewGuid().ToString() };
-
-				Debug.LogWarning("ローカルサーバーモード中");
+				EnableLocalServerMode();
 				yield break;
 			}
-			else if (isSumilationMode)
+			else if (isSimulationMode)
 			{
-				Debug.LogWarning("シミュレーションモード中");
+				EnableSimulationMode();
 				yield break;
 			}
+
 			#endif
 
 			patch = JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_Patch", "{}"));
 
+			// 最後に利用したパッチのマニフェストファイルはダウンロード済み？
 			// Is the last used patch cached?
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
@@ -98,8 +115,42 @@ namespace Mobcast.Coffee.AssetSystem
 			yield break;
 		}
 
+		/// <summary>
+		/// ローカルサーバーモードに設定します.
+		/// Sets the local server mode.
+		/// </summary>
+		public static void EnableLocalServerMode()
+		{
+			#if UNITY_EDITOR
+			// ローカルパッチサーバを起動
+			// Start local patch server.
+			if (isLocalServerMode)
+				UnityEditor.EditorApplication.ExecuteMenuItem(MenuText_LocalServerMode);
+			#endif
+
+			patchServerURL = "http://localhost:7888/";
+			patch = new Patch(){ comment = "LocalServerMode", commitHash = "" };
+			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定しました", kLog);
+		}
+
+		/// <summary>
+		/// シミュレーションモードに設定します.
+		/// Sets the simulation mode.
+		/// </summary>
+		public static void EnableSimulationMode()
+		{
+			SetPatchServerURL("SimulationMode");
+			patch = new Patch(){ comment = "SimulationMode", commitHash = "" };
+			Debug.LogWarningFormat("{0}シミュレーションモードに設定しました", kLog);
+
+			#if UNITY_EDITOR
+			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, false);
+			#endif
+		}
+
 		void Update()
 		{
+			// 実行中のオペレーションを全て更新処理する.
 			// Update all in progress operations
 			for (int i = 0; i < m_InProgressOperations.Count;)
 			{
@@ -110,6 +161,8 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 				else
 				{
+					// オペレーション完了. 終了コールバックを実行.
+					// The operation is completed.
 					m_InProgressOperations.RemoveAt(i);
 					operation.OnComplete();
 					if (!string.IsNullOrEmpty(operation.error))
@@ -118,6 +171,7 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 
 			//アンロード可能なアセットバンドルをアンロード
+			// Unload unused asset bundles.
 			if (0 < m_Unloadable.Count)
 			{
 				var array = m_Unloadable.ToArray();
@@ -132,20 +186,22 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			bundle = null;
 
-			if (manifest)
-			{
-				AssetBundle ab;
-				foreach (var dep in manifest.GetAllDependencies(name))
-				{
-					Debug.Log(dep + " : " + m_LoadedAssetBundles.TryGetValue(dep, out ab) + ", " + ab);
-				}
-			}
+//			if (manifest)
+//			{
+//				AssetBundle ab;
+//				foreach (var dep in manifest.GetAllDependencies(name))
+//				{
+//					Debug.Log(dep + " : " + m_LoadedAssetBundles.TryGetValue(dep, out ab) + ", " + ab);
+//				}
+//			}
+
+			// 依存しているアセットバンドルを全てロード済みか.
 			// TODO: cache dependancy!
 			// Loaded all dependancy.
 			if (!manifest || manifest.GetAllDependencies(name).All(m_LoadedAssetBundles.ContainsKey))
 			{
 
-
+				// 自分自身をロード済みか.
 				// Loaded itself.
 				return m_LoadedAssetBundles.TryGetValue(name, out bundle);
 			}
@@ -157,17 +213,16 @@ namespace Mobcast.Coffee.AssetSystem
 		/// on the web-server should have the same structure as the AssetBundles directory
 		/// in the demo project root.
 		/// </summary>
-		/// <example>For example, AssetBundles/iOS/xyz-scene must map to
-		/// absolutePath/iOS/xyz-scene.
-		/// <example>
-		public static void SetDomainURL(string url)
+		public static void SetPatchServerURL(string url)
 		{
 			#if UNITY_EDITOR
-			if (isLocalServerMode)
+			//ローカルサーバ起動中の場合、ローカルサーバを停止
+			if (UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode))
 			{
-				Debug.LogWarning("ローカルサーバーモード中なので無視されました");
-				return;
+				UnityEditor.EditorApplication.ExecuteMenuItem(AssetManager.MenuText_LocalServerMode);
 			}
+
+			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, false);
 			#endif
 
 			if (!url.EndsWith("/"))
@@ -177,21 +232,24 @@ namespace Mobcast.Coffee.AssetSystem
 		}
 
 		/// <summary>
-		/// Sets the domain URL to streaming assets.
+		/// StreamingAssetsをパッチサーバに設定します.
+		/// Set patch server URL to StreamingAssets.
 		/// </summary>
-		public static void SetDomainURLToStreamingAssets()
+		public static void SetPatchServerURLToStreamingAssets()
 		{
-			SetDomainURL(Application.streamingAssetsPath);
+			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
+			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
 		}
 
 		/// <summary>
 		/// Preloads the asset bundle.
 		/// </summary>
 		/// <returns>The asset bundle.</returns>
-		public static BundlePreLoadOperation PreDownload(Func<string,bool> predicate)
+		public static BundlePreLoadOperation PreDownload(Func<string,bool> predicate, Action onComplete)
 		{
 			#if UNITY_EDITOR
-			if (isSumilationMode)
+			if (isSimulationMode)
 			{
 				Debug.LogWarning("PreDownload AssetBundle in Sumilation Mode");
 
@@ -222,6 +280,8 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 
 			var operation = new BundlePreLoadOperation(m_InProgressOperations.OfType<BundleLoadOperation>().ToList());
+			if (onComplete != null)
+				operation.onComplete += onComplete;
 			m_InProgressOperations.Add(operation);
 
 			return operation;
@@ -233,7 +293,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <returns>The asset bundle.</returns>
 		public static BundlePreLoadOperation PreDownload()
 		{
-			return PreDownload(null);
+			return PreDownload(null, null);
 		}
 
 
@@ -251,7 +311,7 @@ namespace Mobcast.Coffee.AssetSystem
 			string operationId = BundleLoadOperation.GetId(assetBundleName);
 
 #if UNITY_EDITOR
-			if (isSumilationMode)
+			if (isSimulationMode)
 			{
 				return new BundleLoadOperation(assetBundleName);
 			}
@@ -358,11 +418,20 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 		}
 
+		static Regex s_RegAb = new Regex("^ab://(.*)/(.*)$");
+
+
 		/// <summary>
 		/// Starts a load operation for an asset from Resources.
 		/// </summary>
 		static public AssetLoadOperation LoadAssetAsync<T>(string assetName, System.Action<T> onLoad = null) where T:UnityEngine.Object
 		{
+			if (assetName.StartsWith("ab://"))
+			{
+				var match = s_RegAb.Match(assetName);
+				return LoadAssetAsync(match.Groups[1].Value, match.Groups[2].Value, typeof(T), obj => onLoad(obj as T));
+			}
+
 			return onLoad != null
 				? LoadAssetAsync("", assetName, typeof(T), obj => onLoad(obj as T))
 				: LoadAssetAsync("", assetName, typeof(T));
@@ -373,6 +442,12 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		static public AssetLoadOperation LoadAssetAsync(string assetName, System.Type type, System.Action<UnityEngine.Object> onLoad = null)
 		{
+			if (assetName.StartsWith("ab://"))
+			{
+				var match = s_RegAb.Match(assetName);
+				return LoadAssetAsync(match.Groups[1].Value, match.Groups[2].Value, type, onLoad);
+			}
+
 			return onLoad != null
 				? LoadAssetAsync("", assetName, type, onLoad)
 				: LoadAssetAsync("", assetName, type);
@@ -393,6 +468,11 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		static public AssetLoadOperation LoadAssetAsync(string assetBundleName, string assetName, System.Type type, System.Action<UnityEngine.Object> onLoad = null)
 		{
+			if (type != typeof(AssetBundleManifest))
+			{
+				assetBundleName = assetBundleName.ToLower();
+			}
+		
 			string operationId = AssetLoadOperation.GetId(assetBundleName, assetName, type);
 			
 			// Operation has not been cached. Need load the assetbundle.
@@ -485,20 +565,29 @@ namespace Mobcast.Coffee.AssetSystem
 			UnloadAssetbundlesAll();
 
 			#if UNITY_EDITOR
-			if (isSumilationMode)
+			if (isSimulationMode)
 				return null;
 			#endif
 
 			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetPatch);
 		}
 
-		static public AssetLoadOperation UpdatePatchList(string url)
+		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchList> onComplete = null)
 		{
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
-					JsonUtility.FromJsonOverwrite(txt ? txt.text : "{}", patchList);
+					try
+					{
+						JsonUtility.FromJsonOverwrite(txt ? txt.text : "{}", patchList);
+					}
+					catch (Exception e)
+					{
+						Debug.LogException(e);
+						patchList = new PatchList();
+					}
 
 					patch = patchList.leatestPatch;
+					onComplete(patchList);
 				});
 		}
 

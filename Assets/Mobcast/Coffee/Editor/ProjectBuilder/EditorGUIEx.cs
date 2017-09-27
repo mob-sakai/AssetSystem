@@ -318,15 +318,15 @@ namespace Mobcast.Coffee.Build
 				styleHeader.fontSize = 11;
 				styleHeader.fontStyle = FontStyle.Bold;
 				styleHeader.stretchWidth = true;
-				styleHeader.margin = new RectOffset (0, 0, 0, 0);
-				styleHeader.padding = new RectOffset (8, 8, 0, 0);
+				styleHeader.margin = new RectOffset (4, 4, 0, 0);
+				styleHeader.padding = new RectOffset (6, 4, 0, 0);
 				styleHeader.stretchWidth = true;
 				styleHeader.stretchHeight = false;
 				styleHeader.normal.textColor = EditorStyles.label.normal.textColor;
 
 				styleInner = new GUIStyle ("RL Background");
 				styleInner.border = new RectOffset (10, 10, 1, 8);
-				styleInner.margin = new RectOffset (0, 0, 0, 4);
+				styleInner.margin = new RectOffset (4, 4, 0, 4);
 				styleInner.padding = new RectOffset (4, 4, 3, 6);
 				styleInner.clipping = TextClipping.Clip;
 			}

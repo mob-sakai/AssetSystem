@@ -57,6 +57,7 @@ namespace Mobcast.Coffee.AssetSystem
 	/// </summary>
 	public abstract class CacheableDownloadHandler : DownloadHandlerScript
 	{
+		const string kLog = "[WebRequestCaching] ";
 		const string kDataSufix = "_d";
 		const string kEtagSufix = "_e";
 
@@ -86,7 +87,11 @@ namespace Mobcast.Coffee.AssetSystem
 		public static string GetCachePath(string url)
 		{
 			if (s_WebCachePath == null)
+			{
 				s_WebCachePath = Application.temporaryCachePath + "/WebCache/";
+				Debug.LogFormat("{0}WebCachePath : {1}", kLog, s_WebCachePath);
+
+			}
 
 			if (!Directory.Exists(s_WebCachePath))
 				Directory.CreateDirectory(s_WebCachePath);
@@ -132,6 +137,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			if (!isDone)
 			{
+				Debug.LogErrorFormat("{0}Downloading is not completed : {1}", kLog, m_WebRequest.url);
 				throw new InvalidOperationException("Downloading is not completed. " + m_WebRequest.url);
 			}
 			else if (m_Buffer == null)
@@ -139,11 +145,13 @@ namespace Mobcast.Coffee.AssetSystem
 				// Etag cache hit!
 				if (m_WebRequest.responseCode == 304)
 				{
+					Debug.LogFormat("<color=green>{0}Etag cache hit : {1}</color>", kLog, m_WebRequest.url);
 					m_Buffer = LoadCache(m_WebRequest.url);
 				}
 				// Download is completed successfully.
 				else if (m_WebRequest.responseCode == 200)
 				{
+					Debug.LogFormat("<color=green>{0}Download is completed successfully : {1}</color>", kLog, m_WebRequest.url);
 					m_Buffer = m_Stream.GetBuffer();
 					SaveCache(m_WebRequest.url, m_WebRequest.GetResponseHeader("Etag"), m_Buffer);
 				}

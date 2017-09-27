@@ -31,7 +31,7 @@ namespace Mobcast.Coffee.AssetSystem
 			EditorApplication.delayCall += () => Valid();
 		}
 
-		[MenuItem(AssetManager.MenuText_SumilationMode)]
+		[MenuItem(AssetManager.MenuText_SimulationMode)]
 		static void ToggleSimulationMode()
 		{
 			instance.m_SimulationMode = !instance.m_SimulationMode;
@@ -45,7 +45,7 @@ namespace Mobcast.Coffee.AssetSystem
 		[MenuItem(AssetManager.MenuText_LocalServerMode, true)]
 		static bool Valid()
 		{
-			Menu.SetChecked(AssetManager.MenuText_SumilationMode, instance.m_SimulationMode);
+			Menu.SetChecked(AssetManager.MenuText_SimulationMode, instance.m_SimulationMode);
 			Menu.SetChecked(AssetManager.MenuText_LocalServerMode, IsLocalServerRunning());
 			return true;
 		}
@@ -53,6 +53,8 @@ namespace Mobcast.Coffee.AssetSystem
 		[MenuItem(AssetManager.MenuText_LocalServerMode)]
 		static void ToggleLocalServerMode()
 		{
+			BuildAssetBundle();
+
 			if (!IsLocalServerRunning())
 				Run();
 			else
@@ -63,13 +65,18 @@ namespace Mobcast.Coffee.AssetSystem
 		}
 
 		[MenuItem(AssetManager.MenuText_BuildAssetBundle)]
-		static void aa()
+		static void BuildAssetBundle()
 		{
+			if (Application.isPlaying)
+				return;
+
 			string path = "AssetBundles/" + AssetManager.Platform;
 			BuildAssetBundleOptions op = BuildAssetBundleOptions.DeterministicAssetBundle
-				| BuildAssetBundleOptions.UncompressedAssetBundle;
+			                             | BuildAssetBundleOptions.UncompressedAssetBundle;
+			
 			if (!Directory.Exists(path))
 				Directory.CreateDirectory(path);
+			
 			BuildPipeline.BuildAssetBundles(path, op, EditorUserBuildSettings.activeBuildTarget);
 		}
 
@@ -197,7 +204,7 @@ namespace Mobcast.Coffee.AssetSystem
 			using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
 			{
 
-				EditorGUILayout.Toggle("Sumilation Mode", AssetManager.isSumilationMode);
+				EditorGUILayout.Toggle("Sumilation Mode", AssetManager.isSimulationMode);
 				EditorGUILayout.Toggle("Local Server Mode", AssetManager.isLocalServerMode);
 
 
@@ -226,7 +233,7 @@ namespace Mobcast.Coffee.AssetSystem
 			GUILayout.Label("依存関係", EditorStyles.boldLabel);
 			EditorGUILayout.TextArea(
 				AssetManager.m_Depended
-				.Select(p => string.Format("{0} : {1}", p.Key, p.Value.Aggregate(new StringBuilder(), (a, b) => a.AppendFormat("{0}, ",b), a => a.ToString())))
+				.Select(p => string.Format("{0} : {1}", p.Key, p.Value.Aggregate(new StringBuilder(), (a, b) => a.AppendFormat("{0}, ", b), a => a.ToString())))
 					.Aggregate(new StringBuilder(), (a, b) => a.AppendLine(b), a => a.ToString())
 			);
 
