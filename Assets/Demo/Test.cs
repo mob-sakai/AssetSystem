@@ -127,6 +127,7 @@ public class Test : MonoBehaviour
 				if (list == null || list.patchList.Length == 0)
 				{
 					Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
+					AddPatchButton(new Patch(){commitHash = "", comment = "デフォルト"});
 					return;
 				}
 
