@@ -48,6 +48,8 @@ namespace Mobcast.Coffee.Build
 		static readonly Dictionary<int, string> s_BuildTargets = s_Platforms
 			.ToDictionary(x=>(int)x.Key, x=>x.Key.ToString());
 
+		Vector2 scrollPosition;
+
 		public static Texture GetPlatformIcon(ProjectBuilder builder)
 		{
 			return builder.buildApplication && s_Platforms.ContainsKey(builder.buildTarget)
@@ -133,6 +135,13 @@ namespace Mobcast.Coffee.Build
 			);
 
 			SetBuilder(target ?? s_Builders.FirstOrDefault());
+
+			Selection.selectionChanged += OnSelectionChanged;
+		}
+
+		void OnDisable()
+		{
+			Selection.selectionChanged -= OnSelectionChanged;
 		}
 
 		SerializedObject serializedObject;
@@ -143,6 +152,16 @@ namespace Mobcast.Coffee.Build
 			serializedObject = null;
 		}
 
+		void OnSelectionChanged()
+		{
+			Debug.Log(Selection.activeObject);
+			if (Selection.activeObject is ProjectBuilder)
+			{
+				target = Selection.activeObject as ProjectBuilder;
+				serializedObject = null;
+				Repaint();
+			}
+		}
 
 		void OnGUI()
 		{
@@ -150,8 +169,11 @@ namespace Mobcast.Coffee.Build
 				return;
 
 			serializedObject = serializedObject ?? new SerializedObject(target);
-			OnInspectorGUI();
-
+			using (var svs = new EditorGUILayout.ScrollViewScope(scrollPosition))
+			{
+				scrollPosition = svs.scrollPosition;
+				OnInspectorGUI();
+			}
 		}
 
 		/// <summary>

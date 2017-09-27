@@ -226,7 +226,11 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void SetPatchServerURLToStreamingAssets()
 		{
-			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+		#if UNITY_EDITOR
+		SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+		#else
+		SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+		#endif
 			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
 			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
 		}

@@ -74,7 +74,7 @@ public class Test : MonoBehaviour
 
 	public void OnClick_SelectServer()
 	{
-		AssetManager.ClearAll();
+		AssetManager.ClearRuntimeCacheAll();
 		#if UNITY_EDITOR
 		if (toggleServerLocal.isOn)
 		{
@@ -113,29 +113,37 @@ public class Test : MonoBehaviour
 	{
 		sliderProgress.value = 0;
 
-		var patchParent = prefabPatch.transform.parent;
-		for (int i = 1; i < patchParent.childCount; i++)
+		if (toggleServerCloud.isOn)
 		{
-			Destroy(patchParent.GetChild(i).gameObject);
-		}
-
-		string path = AssetManager.patchServerURL + "history.json";
-		AssetManager.UpdatePatchList(path, list =>
+			var patchParent = prefabPatch.transform.parent;
+			for (int i = 1; i < patchParent.childCount; i++)
 			{
-				Debug.Log("パッチリストの更新");
+				Destroy(patchParent.GetChild(i).gameObject);
+			}
 
-				if (list == null || list.patchList.Length == 0)
+			string path = AssetManager.patchServerURL + "history.json";
+			AssetManager.UpdatePatchList(path, list =>
 				{
-					Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
-					AddPatchButton(new Patch(){commitHash = "", comment = "デフォルト"});
-					return;
-				}
+					Debug.Log("パッチリストの更新");
 
-				foreach (var p in list.patchList)
-				{
-					AddPatchButton(p);
-				}
-			});
+					if (list == null || list.patchList.Length == 0)
+					{
+						Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
+						AddPatchButton(new Patch(){ commitHash = "", comment = "デフォルト" });
+						return;
+					}
+
+					foreach (var p in list.patchList)
+					{
+						AddPatchButton(p);
+					}
+				});
+		}
+		else
+		{
+			AssetManager.SetPatch(AssetManager.patch);
+			textCurrentPatch.text = AssetManager.patch.ToString();
+		}
 	}
 
 
