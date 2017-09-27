@@ -122,6 +122,8 @@ public class Test : MonoBehaviour
 		string path = AssetManager.patchServerURL + "history.json";
 		AssetManager.UpdatePatchList(path, list =>
 			{
+				Debug.Log("パッチリストの更新");
+
 				if (list == null || list.patchList.Length == 0)
 				{
 					Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
@@ -162,6 +164,9 @@ public class Test : MonoBehaviour
 
 	IEnumerator Co_PreloadProgress(AssetOperation op)
 	{
+		if (op == null)
+			yield break;
+		
 		while (op.keepWaiting)
 		{
 			sliderProgress.value = op.progress;
