@@ -574,8 +574,12 @@ namespace Mobcast.Coffee.AssetSystem
 
 		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchList> onComplete = null)
 		{
+		Debug.Log("パッチリストの更新　実行");
+
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
+				Debug.Log("パッチリストの更新　ロード完了");
+
 					try
 					{
 						JsonUtility.FromJsonOverwrite(txt ? txt.text : "{}", patchList);
