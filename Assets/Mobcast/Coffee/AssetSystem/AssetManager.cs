@@ -578,7 +578,8 @@ namespace Mobcast.Coffee.AssetSystem
 
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
-				Debug.Log("パッチリストの更新　ロード完了");
+					Debug.Log("パッチリストの更新　ロード完了 " + txt + "," + txt ? txt.text : "{}");
+					patchList = new PatchList();
 
 					try
 					{
@@ -587,7 +588,6 @@ namespace Mobcast.Coffee.AssetSystem
 					catch (Exception e)
 					{
 						Debug.LogException(e);
-						patchList = new PatchList();
 					}
 
 					patch = patchList.leatestPatch;

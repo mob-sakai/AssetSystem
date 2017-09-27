@@ -329,10 +329,10 @@ namespace Mobcast.Coffee.AssetSystem
 			// Asset in Web or StreamingAssets.
 			if (m_WebRequest != null)
 			{
-				Debug.Log(" m_WebRequest. " + m_WebRequest.isDone);
+				Debug.Log(" m_WebRequest. " + m_WebRequest.isDone + ", " + m_WebRequest.error);
 				error = m_WebRequest.error;
 
-				if (m_WebRequest.isDone && string.IsNullOrEmpty(m_WebRequest.error))
+				if (m_WebRequest.isDone && string.IsNullOrEmpty(error))
 				{
 					Object asset = null;
 					if (m_Type == typeof(Texture2D))
@@ -341,6 +341,7 @@ namespace Mobcast.Coffee.AssetSystem
 						asset = (m_WebRequest.downloadHandler as DownloadHandlerAudioClip).audioClip;
 					else
 					{
+						Debug.Log("data; " + m_WebRequest.downloadHandler.text);
 						asset = PlainObject.Create(m_WebRequest.downloadHandler.data);
 					}
 					AssetManager.m_RuntimeCache[id] = asset;
