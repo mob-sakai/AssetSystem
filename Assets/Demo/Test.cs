@@ -53,10 +53,15 @@ public class Test : MonoBehaviour
 		InvokeRepeating("UpdateSummary", 0, 1);
 
 
-		var buildManifest = Resources.Load<TextAsset>("UnityCloudBuildManifest.scriptable");
+		var buildManifest = Resources.Load<TextAsset>("UnityCloudBuildManifest.json");
 		if(buildManifest)
 		{
 			Debug.Log(buildManifest.text);
+		}
+		else
+		{
+			Debug.Log("まにふぇすとないっす");
+
 		}
 	}
 
