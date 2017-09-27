@@ -9,10 +9,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: faf9e5a5972d8420ab6e88e89471f4a2, type: 3}
-  m_Name: Builder_Android
+  m_Name: Default Android AB
   m_EditorClassIdentifier: 
   buildApplication: 1
-  buildAssetBundle: 0
+  buildAssetBundle: 1
   copyToStreamingAssets: 1
   bundleOptions: 1
   buildTarget: 13
