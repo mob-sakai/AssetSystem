@@ -140,7 +140,11 @@ namespace Mobcast.Coffee.Build
 			//引数にbuilderオプションが無かったらエラー.
 			string name;
 			var args = executeArguments;
-			if (!args.TryGetValue(Util.OPT_BUILDER, out name) && !args.TryGetValue(Util.OPT_CLOUD_BUILDER, out name))
+			if(args.TryGetValue(Util.OPT_CLOUD_BUILDER, out name))
+			{
+				name = name.Replace("-", " ");
+			}
+			else if (!args.TryGetValue(Util.OPT_BUILDER, out name))
 			{
 				throw new UnityException(ProjectBuilder.kLogType + "Error : You need to specify the builder as follows. '-builder <builder asset name>'");
 			}
