@@ -12,19 +12,19 @@ MonoBehaviour:
   m_Name: Builder_AssetBundle
   m_EditorClassIdentifier: 
   buildApplication: 1
-  buildAssetBundle: 1
-  copyToStreamingAssets: 1
-  bundleOptions: 1
-  buildTarget: 13
-  developmentBuild: 1
+  buildAssetBundle: 0
+  copyToStreamingAssets: 0
+  bundleOptions: 0
+  buildTarget: 0
+  developmentBuild: 0
   defineSymbols: 
-  productName: AssetSystem
-  companyName: mobcast
-  applicationIdentifier: com.mobcast.inhouse.testbuild2
-  version: 1.0
+  productName: 
+  companyName: 
+  applicationIdentifier: 
+  version: 
   versionCode: 0
   iosSettings:
-    automaticallySign: 1
+    automaticallySign: 0
     developerTeamId: 
     codeSignIdentity: 
     profileId: 

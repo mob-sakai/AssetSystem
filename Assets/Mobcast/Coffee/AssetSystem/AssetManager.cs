@@ -115,7 +115,7 @@ namespace Mobcast.Coffee.AssetSystem
 			yield break;
 		}
 
-#if UNITY_EDITOR
+		#if UNITY_EDITOR
 		/// <summary>
 		/// ローカルサーバーモードに設定します.
 		/// Sets the local server mode.
@@ -129,7 +129,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			patchServerURL = "http://localhost:7888/";
 			patch = new Patch(){ comment = "LocalServerMode", commitHash = "" };
-			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定しました", kLog);
+			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定しました : {1}", kLog, patchServerURL);
 		}
 
 		/// <summary>
@@ -144,7 +144,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
 		}
-#endif
+		#endif
 
 		void Update()
 		{
@@ -218,6 +218,7 @@ namespace Mobcast.Coffee.AssetSystem
 				url += "/";
 
 			patchServerURL = url;
+			Debug.LogWarningFormat("{0}パッチサーバーURLを設定しました : {1}", kLog, patchServerURL);
 		}
 
 		/// <summary>
@@ -226,11 +227,12 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void SetPatchServerURLToStreamingAssets()
 		{
-		#if UNITY_EDITOR
-		SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-		#else
+			#if UNITY_EDITOR
+			SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+			#else
 		SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-		#endif
+			#endif
+			patchList = new PatchList();
 			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
 			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
 		}
@@ -244,8 +246,7 @@ namespace Mobcast.Coffee.AssetSystem
 			#if UNITY_EDITOR
 			if (isSimulationMode)
 			{
-				Debug.LogWarning("PreDownload AssetBundle in Sumilation Mode");
-
+				Debug.LogErrorFormat("{0}事前ダウンロード　スキップ : シミュレーションモード中は無視されます", kLog);
 				var dummyOperation = new BundlePreLoadOperation(m_InProgressOperations.OfType<BundleLoadOperation>().ToList());
 				m_InProgressOperations.Add(dummyOperation);
 				return dummyOperation;
@@ -254,7 +255,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			if (!manifest)
 			{
-				Debug.LogWarning("no manifest");
+				Debug.LogErrorFormat("{0}事前ダウンロード　失敗 : マニフェストがロードされていません", kLog);
 				return null;
 			}
 
@@ -314,14 +315,13 @@ namespace Mobcast.Coffee.AssetSystem
 			// Already loaded.
 			AssetBundle bundle = null;
 			m_LoadedAssetBundles.TryGetValue(assetBundleName, out bundle);
+			Debug.LogFormat("{0}アセットバンドルロード : {1} (ロード済み:{2})", kLog, operationId, bundle != null);
 			if (bundle != null)
 			{
-				Debug.LogFormat("LoadAssetBundle {0}, is loaded already.", assetBundleName);
 				return new BundleLoadOperation(operationId);
 			}
 			m_LoadedAssetBundles.Remove(assetBundleName);
 
-			Debug.LogFormat("LoadAssetBundle {0}, manifest ? {1}", assetBundleName, isLoadingAssetBundleManifest);
 
 			// Search same operation in progress to merge load complete callbacks.
 			// Check if the assetBundle has already been processed.
@@ -338,7 +338,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				if (!manifest)
 				{
-					Debug.LogError("Please initialize AssetBundleManifest by calling AssetBundleManager.Initialize()");
+					Debug.LogErrorFormat("{0}アセットバンドルロード　失敗 : マニフェストがロードされていません", kLog);
 					return null;
 				}
 
@@ -373,7 +373,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				var hash = Hash128.Parse(patch.commitHash);
 				// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
-				Debug.LogFormat("LoadingAssetBundleManifest: {0}, {1} (cached:{2})", url, hash, Caching.IsVersionCached(assetBundleName, hash));
+				Debug.LogFormat("{0}アセットバンドルマニフェストのロード : {1}, {2}(キャッシュ済み:{3})", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
 				request = UnityWebRequest.GetAssetBundle(url, hash, 0);
 			}
 			else
@@ -406,8 +406,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (bundle)
 			{
 				bundle.Unload(!checkDependancy);
-//				bundle.Unload(true);
-				Debug.Log(assetBundleName + " has been unloaded successfully");
+				Debug.LogFormat("{0}アセットバンドルのアンロード　成功 : {1}", kLog, assetBundleName);
 			}
 		}
 
@@ -488,6 +487,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (operation == null)
 			{
 				operation = new AssetLoadOperation(assetBundleName, assetName, type);
+				operation.onComplete += () => AssetManager.m_RuntimeCache[operationId] = operation.GetAsset<Object>();
 				m_InProgressOperations.Add(operation);
 			}
 
@@ -496,8 +496,9 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				operation.onComplete += () =>
 				{
-					Debug.LogFormat("oncomplete  {0} {1}", operationId, m_RuntimeCache.ContainsKey(operationId));
-					onLoad(m_RuntimeCache.ContainsKey(operationId) ? m_RuntimeCache[operationId] : null);
+					var obj = operation.GetAsset<Object>();
+					Debug.LogFormat("{0}ロード完了 : {1}(成功:{2})", kLog, operationId, obj != null);
+					onLoad(obj);
 				};
 			}
 
@@ -513,21 +514,19 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="manifest">Asset bundle manifest.</param>
 		static void SetPatch(AssetBundleManifest manifest)
 		{
-//			Debug.Assert(!isSumilationMode);
-
-			Debug.Log("update manifest. " + patch.commitHash);
+			Debug.LogFormat("{0}マニフェスト更新 : {1}", kLog, patch);
 			var oldManifest = manifest;
 			AssetManager.manifest = manifest;
 
 			if (!manifest)
 			{
-				Debug.LogError("Failed to update manifest.");
+				Debug.LogErrorFormat("{0}マニフェスト更新　失敗", kLog);
 				return;
 			}
 
 			if (oldManifest)
 			{
-				Debug.Log("manifest gap check.");
+				Debug.LogFormat("{0}マニフェスト更新　ギャップチェック", kLog);
 			
 				var oldBundles = new HashSet<string>(oldManifest.GetAllAssetBundles());
 				var newBundles = new HashSet<string>(manifest.GetAllAssetBundles());
@@ -567,11 +566,10 @@ namespace Mobcast.Coffee.AssetSystem
 
 		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchList> onComplete = null)
 		{
-		Debug.Log("パッチリストの更新　実行");
+			Debug.LogFormat("{0}パッチリストの更新　開始 : {1}", kLog, url);
 
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
-				Debug.Log("パッチリストの更新　ロード完了 " + txt + "," + (txt ? txt.text : "{}"));
 					patchList = new PatchList();
 
 					try
@@ -580,7 +578,7 @@ namespace Mobcast.Coffee.AssetSystem
 					}
 					catch (Exception e)
 					{
-						Debug.LogException(e);
+						Debug.LogErrorFormat("{0}パッチリストの更新　失敗 : {1}", kLog, e.Message);
 					}
 
 					patch = patchList.leatestPatch;
@@ -599,7 +597,7 @@ namespace Mobcast.Coffee.AssetSystem
 			UnloadAssetBundleInternal(assetBundleName);
 			if (Caching.IsVersionCached(assetBundleName, hash))
 			{
-				Debug.LogFormat("Delete assetbundle {0}, hash {1}", assetBundleName, hash);
+				Debug.LogFormat("{0}アセットバンドルの削除 : {1}({2})", kLog, assetBundleName, hash.ToString().Substring(0, 4));
 				var request = UnityWebRequest.GetAssetBundle(assetBundleName, hash, uint.MaxValue);
 				request.Send();
 				request.Abort();
@@ -611,6 +609,8 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		static public void ClearCachedAssetBundleAll()
 		{
+			Debug.LogFormat("{0}アセットバンドルをすべて削除", kLog);
+
 #if UNITY_2017_1_OR_NEWER
 			Caching.ClearCache();
 #else
@@ -642,7 +642,38 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void ClearRuntimeCacheAll()
 		{
+			Debug.LogFormat("{0}ランタイムキャッシュをすべて削除", kLog);
 			m_RuntimeCache.Clear();
+		}
+
+		/// <summary>
+		/// Clears the runtime cache.
+		/// </summary>
+		public static void ClearRuntimeCacheAll(Predicate<string> predicate)
+		{
+			ClearRuntimeCacheAll(m_RuntimeCache.Where(x => predicate(x.Key)).Select(x => x.Key).ToArray());
+		}
+
+
+		/// <summary>
+		/// Clears the runtime cache.
+		/// </summary>
+		public static void ClearRuntimeCacheAll(Predicate<Object> predicate)
+		{
+			ClearRuntimeCacheAll(m_RuntimeCache.Where(x => predicate(x.Value)).Select(x => x.Key).ToArray());
+		}
+
+		/// <summary>
+		/// Clears the runtime cache.
+		/// </summary>
+		public static void ClearRuntimeCacheAll(IEnumerable<string> ids)
+		{
+			Debug.LogFormat("{0}ランタイムキャッシュを削除 : {1}件", kLog, ids.Count());
+
+			foreach (var id in ids)
+			{
+				m_RuntimeCache.Remove(id);
+			}
 		}
 
 		/// <summary>

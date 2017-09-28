@@ -474,7 +474,9 @@ PlayerSettings:
   XboxOneAllowedProductIds: []
   XboxOnePersistentLocalStorageSize: 0
   vrEditorSettings: {}
-  cloudServicesEnabled: {}
+  cloudServicesEnabled:
+    Build: 1
+    UNet: 1
   cloudProjectId: e62b3ed0-0dcc-4e8b-b329-8ee812e6b2db
   projectName: AssetSystem
   organizationId: mob-sakai

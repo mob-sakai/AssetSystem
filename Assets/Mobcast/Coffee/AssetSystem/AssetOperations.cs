@@ -182,6 +182,7 @@ namespace Mobcast.Coffee.AssetSystem
 		protected System.Type m_Type;
 		protected AsyncOperation m_Request = null;
 		protected UnityWebRequest m_WebRequest = null;
+		protected Object m_Object;
 
 		public static string GetId(string bundleName, string assetName, System.Type type)
 		{
@@ -194,6 +195,8 @@ namespace Mobcast.Coffee.AssetSystem
 			m_AssetName = assetName;
 			m_Type = type;
 			id = GetId(m_AssetBundleName, m_AssetName, m_Type);
+			if (AssetManager.m_RuntimeCache.TryGetValue(id, out m_Object))
+				return;
 
 			AssetManager.AddDepend(m_AssetBundleName, id);
 
@@ -210,7 +213,7 @@ namespace Mobcast.Coffee.AssetSystem
 				var asset = pathes.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type)).FirstOrDefault();
 				if (asset)
 				{
-					AssetManager.m_RuntimeCache[id] = asset;
+					m_Object = asset;
 				}
 				else
 				{
@@ -258,9 +261,10 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public T GetAsset<T>() where T : Object
 		{
-			// Operation has been cached.
-			Object obj = null;
-			return AssetManager.m_RuntimeCache.TryGetValue(id, out obj) ? obj as T : null;
+			return m_Object as T;
+//			// Operation has been cached.
+//			Object obj = null;
+//			return AssetManager.m_RuntimeCache.TryGetValue(id, out obj) ? obj as T : null;
 		}
 
 		// Returns true if more Update calls are required.
@@ -269,10 +273,11 @@ namespace Mobcast.Coffee.AssetSystem
 			// Return if meeting downloading error.
 			if (!string.IsNullOrEmpty(error))
 				return false;
-			
-			// Operation has been cached.
-			if (AssetManager.m_RuntimeCache.ContainsKey(id))
+
+			// .
+			if (m_Object)
 				return false;
+			
 
 			progress = m_Request != null ? m_Request.progress : 0;
 
@@ -307,8 +312,8 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			get
 			{
-				// Operation has been cached.
-				if (AssetManager.m_RuntimeCache.ContainsKey(id))
+				// .
+				if (m_Object)
 					return false;
 
 				// Return if meeting downloading error.
@@ -323,7 +328,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			Debug.Log(id + " OnComplete. " + m_Request);
 
-				AssetManager.SubDepend(m_AssetBundleName, id);
+			AssetManager.SubDepend(m_AssetBundleName, id);
 
 
 			// Asset in Web or StreamingAssets.
@@ -344,7 +349,7 @@ namespace Mobcast.Coffee.AssetSystem
 						Debug.Log("data; " + m_WebRequest.downloadHandler.text);
 						asset = PlainObject.Create(m_WebRequest.downloadHandler.data);
 					}
-					AssetManager.m_RuntimeCache[id] = asset;
+					m_Object = asset;
 				}
 
 				if (!m_WebRequest.isDone)
@@ -357,7 +362,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				Debug.Log(" ResourceRequest. " + (m_Request as ResourceRequest).asset);
 				if ((m_Request as ResourceRequest).asset)
-					AssetManager.m_RuntimeCache[id] = (m_Request as ResourceRequest).asset;
+					m_Object = (m_Request as ResourceRequest).asset;
 				else
 					error = " not found " + id;
 			}
@@ -366,14 +371,13 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				Debug.Log(" AssetBundleRequest. " + (m_Request as AssetBundleRequest).asset);
 				if ((m_Request as AssetBundleRequest).asset)
-					AssetManager.m_RuntimeCache[id] = (m_Request as AssetBundleRequest).asset;
+					m_Object = (m_Request as AssetBundleRequest).asset;
 				else
 					error = " not found " + id;
 			}
 
 			if (!string.IsNullOrEmpty(error))
 				Debug.LogError(error);
-
 
 			base.OnComplete();
 		}
