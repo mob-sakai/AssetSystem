@@ -27,23 +27,6 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public event System.Action onComplete = () => { };
 
-//		public bool MoveNext()
-//		{
-//			return !IsDone();
-//		}
-//
-//		public void Reset()
-//		{
-//		}
-
-//		public override bool keepWaiting
-//		{
-//			get
-//			{
-//				throw new NotImplementedException();
-//			}
-//		}
-
 		public virtual bool Update()
 		{
 			return keepWaiting;
@@ -89,17 +72,17 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static string GetId(string bundleName)
 		{
-			return string.Format("{0}", bundleName);
+			return string.Format("ab://{0}", bundleName);
 		}
 
 		public BundleLoadOperation(string bundleName)
 		{
-			this.id = bundleName;
+			id = GetId(bundleName);
 		}
 
 		public BundleLoadOperation(string bundleName, UnityWebRequest request)
 		{
-			this.id = bundleName;
+			id = GetId(bundleName);
 			m_request = request;
 			m_request.Send();
 //			id = System.IO.Path.GetFileName(m_request.url);
@@ -186,7 +169,12 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static string GetId(string bundleName, string assetName, System.Type type)
 		{
-			return string.Format("{0}.{1}.{2}", bundleName, assetName, type.Name);
+			if(!string.IsNullOrEmpty(bundleName))
+				return string.Format("ab://{0}/{1}({2})", bundleName, assetName, type.Name);
+			else if(assetName.Contains("://"))
+				return string.Format("{0}({1})", assetName, type.Name);
+			else
+				return string.Format("resources://{0}({1})", assetName, type.Name);
 		}
 
 		public AssetLoadOperation(string bundleName, string assetName, System.Type type)

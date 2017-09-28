@@ -315,10 +315,10 @@ namespace Mobcast.Coffee.AssetSystem
 			// Already loaded.
 			AssetBundle bundle = null;
 			m_LoadedAssetBundles.TryGetValue(assetBundleName, out bundle);
-			Debug.LogFormat("{0}アセットバンドルロード : {1} (ロード済み:{2})", kLog, operationId, bundle != null);
+			Debug.LogFormat("{0}アセットバンドルロード : {1} (ロード済み:{2})", kLog, assetBundleName, bundle != null);
 			if (bundle != null)
 			{
-				return new BundleLoadOperation(operationId);
+				return new BundleLoadOperation(assetBundleName);
 			}
 			m_LoadedAssetBundles.Remove(assetBundleName);
 
