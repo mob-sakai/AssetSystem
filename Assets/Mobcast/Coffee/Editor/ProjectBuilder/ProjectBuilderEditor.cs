@@ -49,7 +49,7 @@ namespace Mobcast.Coffee.Build
 					: EditorGUIUtility.FindTexture("BuildSettings.Editor.Small");
 		}
 
-		[MenuItem("Coffee/Project BuilderX")]
+		[MenuItem("Coffee/Project Builder")]
 		public static void OnOpenFromMenu()
 		{
 			EditorWindow.GetWindow<ProjectBuilderEditor>("Project Builder");
