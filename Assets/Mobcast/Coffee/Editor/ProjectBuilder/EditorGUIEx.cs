@@ -1,13 +1,8 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
-using Mobcast.Coffee.Build;
 using System;
-using System.Reflection;
-using UnityEditor.Callbacks;
 using System.Text;
 
 
@@ -15,101 +10,22 @@ namespace Mobcast.Coffee.Build
 {
 	internal static class EditorGUIEx
 	{
-		/// <summary>コンテンツディクショナリ.</summary>
-		static Dictionary<string, GUIContent> s_ContentDictionary = new Dictionary<string, GUIContent> ();
-
-		/// <summary>プロパティディクショナリ.</summary>
-		static Dictionary<object, Dictionary<string, SerializedProperty>> s_PropertyDictionaries = new Dictionary<object, Dictionary<string, SerializedProperty>> ();
-
-		/// <summary>プロパティディクショナリのリフレッシュカウント.</summary>
-		static int s_RefleshCount = 0;
-
-		/// <summary>
-		/// 相対パスからSerializedPropertyを取得します.
-		/// このメソッドで取得したSerializedPropertyはキャッシュされます.
-		/// SerializedProperty.FindPropertyRelativeは都度インスタンス作成されるため、GCコストがかかりますが、
-		/// こちらのメソッドでは高速かつ省メモリでSerializedPropertyを取得できます.
-		/// </summary>
-		/// <param name="property">SerializedProperty.</param>
-		/// <param name="relativePath">相対パス.</param>
-		public static SerializedProperty GetProperty (this object self, string path)
-		{
-			//プロパティディクショナリのリフレッシュカウントをすすめます.
-			//1000000アクセス毎に、プロパティディクショナリをリセットします.
-			if (1000000 < ++s_RefleshCount) {
-				s_RefleshCount = 0;
-				s_ContentDictionary = new Dictionary<string, GUIContent> ();
-				s_PropertyDictionaries = new Dictionary<object, Dictionary<string, SerializedProperty>> ();
-			}
-
-			//プロパティディクショナリを取得または生成します.
-			Dictionary<string, SerializedProperty> map;
-			if (!s_PropertyDictionaries.TryGetValue (self, out map) || map == null) {
-				map = new Dictionary<string, SerializedProperty> ();
-				s_PropertyDictionaries [self] = map;
-			}
-
-			SerializedProperty property;
-			if (!map.TryGetValue (path, out property) || property == null) {
-				property = self is SerializedObject ? (self as SerializedObject).FindProperty (path)
-					: self is SerializedProperty ? (self as SerializedProperty).FindPropertyRelative (path)
-					: null;
-				map [path] = property;
-			}
-			return property;
-		}
-
-		/// <summary>
-		/// オブジェクトからGUIContentを取得します.
-		/// このメソッドで取得したGUIContentはキャッシュされます.
-		/// </summary>
-		/// <param name="label">コンテンツラベル.</param>
-		public static GUIContent GetContent (string label)
-		{
-			return GetContent (label, null);
-		}
-
-		/// <summary>
-		/// オブジェクトからGUIContentを取得します.
-		/// このメソッドで取得したGUIContentはキャッシュされます.
-		/// </summary>
-		/// <param name="label">コンテンツラベル.</param>
-		public static GUIContent GetContent (string label, Texture icon, string tooltip = "")
-		{
-			GUIContent c;
-			if (!s_ContentDictionary.TryGetValue (label, out c) || c == null) {
-				c = new GUIContent (label, icon, tooltip);
-				s_ContentDictionary [label] = c;
-			}
-			return c;
-		}
-
-		public static void PropertyField (SerializedProperty property, params GUILayoutOption[] options)
-		{
-			EditorGUILayout.PropertyField (property, EditorGUIEx.GetContent (property.displayName), options);
-		}
-
-		public static void PropertyField (SerializedProperty property, GUIContent label, params GUILayoutOption[] options)
-		{
-			EditorGUILayout.PropertyField (property, label, options);
-		}
-
-		static StringBuilder s_StringBuilder = new StringBuilder ();
+		static readonly StringBuilder s_StringBuilder = new StringBuilder ();
 
 		public static void PopupField (SerializedProperty property, Dictionary<int,string> displayedOptions, params GUILayoutOption[] options)
 		{
-			PopupField (property, EditorGUIEx.GetContent (property.displayName), displayedOptions, options);
+			PopupField (property, new GUIContent (property.displayName), displayedOptions, options);
 		}
 
 		public static void PopupField (SerializedProperty property, GUIContent label, Dictionary<int,string> displayedOptions, params GUILayoutOption[] options)
 		{
-			var popupLabel = displayedOptions.ContainsKey (property.intValue) ? EditorGUIEx.GetContent (displayedOptions [property.intValue]) : GUIContent.none;
+			var popupLabel = displayedOptions.ContainsKey (property.intValue) ? new GUIContent (displayedOptions [property.intValue]) : GUIContent.none;
 			_PopupField (property, label, displayedOptions, popupLabel, false, options);
 		}
 
 		public static void MaskField (SerializedProperty property, Dictionary<int,string> displayedOptions, params GUILayoutOption[] options)
 		{
-			MaskField (property, EditorGUIEx.GetContent (property.displayName), displayedOptions, options);
+			MaskField (property, new GUIContent (property.displayName), displayedOptions, options);
 		}
 
 		public static void MaskField (SerializedProperty property, GUIContent label, Dictionary<int,string> displayedOptions, params GUILayoutOption[] options)
@@ -123,7 +39,7 @@ namespace Mobcast.Coffee.Build
 			if (2 < s_StringBuilder.Length)
 				s_StringBuilder.Length -= 2;
 
-			_PopupField (property, label, displayedOptions, EditorGUIEx.GetContent (s_StringBuilder.ToString ()), true, options);
+			_PopupField (property, label, displayedOptions, new GUIContent (s_StringBuilder.ToString ()), true, options);
 		}
 
 
@@ -145,7 +61,7 @@ namespace Mobcast.Coffee.Build
 					var item = op;
 
 					bool active = maskable ? (item.Key == current || 0 != (current & item.Key)) : (current == item.Key);
-					menu.AddItem (EditorGUIEx.GetContent (item.Value), active, 
+					menu.AddItem (new GUIContent (item.Value), active, 
 						() => {
 							if (!active && maskable && item.Key == 0)
 								property.intValue = 0;
@@ -164,7 +80,7 @@ namespace Mobcast.Coffee.Build
 
 		public static void PopupField (SerializedProperty property, string[] displayedOptions, params GUILayoutOption[] options)
 		{
-			PopupField (property, EditorGUIEx.GetContent (property.displayName), displayedOptions, options);
+			PopupField (property, new GUIContent (property.displayName), displayedOptions, options);
 		}
 
 		public static void PopupField (SerializedProperty property, GUIContent label, string[] displayedOptions, params GUILayoutOption[] options)
@@ -176,12 +92,12 @@ namespace Mobcast.Coffee.Build
 			r = EditorGUI.PrefixLabel (r, label);
 
 			// Popup button.
-			if (GUI.Button (r, EditorGUIEx.GetContent (property.stringValue), EditorStyles.popup)) {
+			if (GUI.Button (r, new GUIContent (property.stringValue), EditorStyles.popup)) {
 				// Create menu and add all items. When you clicked item, apply itself.
 				var menu = new GenericMenu ();
 				foreach (var op in displayedOptions) {
 					string item = op;
-					menu.AddItem (EditorGUIEx.GetContent (item), property.stringValue == item, 
+					menu.AddItem (new GUIContent (item), property.stringValue == item, 
 						() => {
 							property.stringValue = item;
 							property.serializedObject.ApplyModifiedProperties ();
@@ -194,7 +110,7 @@ namespace Mobcast.Coffee.Build
 
 		public static void FilePathField (SerializedProperty property, string title, string directory, string extension, params GUILayoutOption[] options)
 		{
-			FilePathField (property, EditorGUIEx.GetContent (property.displayName), title, directory, extension, options);
+			FilePathField (property, new GUIContent (property.displayName), title, directory, extension, options);
 		}
 
 		public static void FilePathField (SerializedProperty property, GUIContent label, string title, string directory, string extension, params GUILayoutOption[] options)
@@ -225,12 +141,12 @@ namespace Mobcast.Coffee.Build
 
 		public static void TextFieldWithTemplate (SerializedProperty property, string[] displayedOptions, bool maskable, params GUILayoutOption[] options)
 		{
-			TextFieldWithTemplate (property, EditorGUIEx.GetContent (property.displayName), displayedOptions, maskable, options);
+			TextFieldWithTemplate (property, new GUIContent (property.displayName), displayedOptions, maskable, options);
 		}
 
 		public static void TextFieldWithTemplate (SerializedProperty property, GUIContent label, string[] displayedOptions, bool maskable, params GUILayoutOption[] options)
 		{
-			TextFieldWithTemplate (GUILayoutUtility.GetRect (label, EditorStyles.textField, options), property, EditorGUIEx.GetContent (property.displayName), displayedOptions, maskable, options);
+			TextFieldWithTemplate (GUILayoutUtility.GetRect (label, EditorStyles.textField, options), property, new GUIContent (property.displayName), displayedOptions, maskable, options);
 		}
 
 		public static void TextFieldWithTemplate (Rect r, SerializedProperty property, GUIContent label, string[] displayedOptions, bool maskable, params GUILayoutOption[] options)
@@ -256,7 +172,7 @@ namespace Mobcast.Coffee.Build
 				foreach (var op in displayedOptions) {
 					string item = op;
 					bool active = maskable ? property.stringValue.Contains (item) : property.stringValue == item;
-					menu.AddItem (EditorGUIEx.GetContent (item), active, 
+					menu.AddItem (new GUIContent (item), active, 
 						() => {
 							if (maskable) {
 								property.stringValue = active ? property.stringValue.Replace (item, "") : property.stringValue + ";" + item;
@@ -274,31 +190,6 @@ namespace Mobcast.Coffee.Build
 			}
 			EditorGUI.EndProperty ();
 		}
-
-		static GUIStyle s_StyleFoldout;
-		static Dictionary<string,bool> s_Toggles = new Dictionary<string, bool> ();
-
-		public static bool Foldout (string label)
-		{
-			if (s_StyleFoldout == null)
-				s_StyleFoldout = new GUIStyle ("IN Foldout"){ fontStyle = FontStyle.Bold };
-			
-			bool toggle;
-			if (!s_Toggles.TryGetValue (label, out toggle)) {
-				s_Toggles [label] = EditorPrefs.GetBool (typeof(EditorGUIEx).FullName + "_" + label, true);
-				toggle = true;
-			}
-
-			Rect r = EditorGUILayout.GetControlRect ();
-			r.x -= 10;
-			if (GUI.Toggle (r, toggle, label, s_StyleFoldout) != toggle) {
-				toggle = !toggle;
-				s_Toggles [label] = toggle;
-				EditorPrefs.SetBool (typeof(EditorGUIEx).FullName + "_" + label, toggle);
-			}
-			return toggle;
-		}
-
 
 		/// <summary>折りたたみスコープ(インスペクタ専用).</summary>
 		internal class GroupScope : IDisposable
@@ -351,7 +242,7 @@ namespace Mobcast.Coffee.Build
 			/// <summary>折りたたみスコープを開始します(usingの使用を推奨).</summary>
 			public GroupScope (string text, params GUILayoutOption[] option)
 			{
-				SetScope (EditorGUIEx.GetContent (text), option);
+				SetScope (new GUIContent (text), option);
 			}
 
 			/// <summary>
