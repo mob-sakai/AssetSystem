@@ -44,10 +44,6 @@ namespace Mobcast.Coffee.Build
 		static readonly int[] s_BuildTargetValues = s_BuildTargetSettings.Keys.Cast<int>().ToArray();
 		static readonly GUIContent[] s_BuildTargetLabels = s_BuildTargetSettings.Keys.Select(x => new GUIContent(x.ToString())).ToArray();
 		
-		static readonly Dictionary<int, string> s_BuildTargets = s_BuildTargetSettings
-			.ToDictionary(x => (int)x.Key, x => x.Key.ToString());
-
-
 		public static Texture GetPlatformIcon(ProjectBuilder builder)
 		{
 			return builder.buildApplication && s_BuildTargetSettings.ContainsKey(builder.buildTarget)
