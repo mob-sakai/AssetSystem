@@ -86,7 +86,7 @@ namespace Mobcast.Coffee.AssetSystem
 			);
 		}
 
-		IEnumerator Start()
+		protected virtual IEnumerator Start()
 		{
 			yield return new WaitUntil(() => Caching.ready);
 
@@ -230,10 +230,11 @@ namespace Mobcast.Coffee.AssetSystem
 			#if UNITY_EDITOR
 			SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
 			#else
-		SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
+			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
 			#endif
 			patchList = new PatchList();
 			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
+			SetPatch(patch);
 			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
 		}
 

@@ -164,6 +164,11 @@ AssetManager.Preload();
 
 ## Release Notes
 
+### ver.0.2.0:
+
+* StreamingAssetsモードの追加
+
+
 ### ver.0.1.0:
 
 * Load asset 

@@ -194,7 +194,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				var pathes = !string.IsNullOrEmpty(bundleName)
 					? UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
-					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, assetName))
+					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, System.IO.Path.GetFileName(assetName)))
 						.Select(guid=>UnityEditor.AssetDatabase.GUIDToAssetPath(guid))
 						.ToArray();
 				
@@ -205,7 +205,7 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 				else
 				{
-					error = "error : loading error YYY";
+					error = "error : loading error : " + id;
 				}
 				progress = 1f;
 				return;

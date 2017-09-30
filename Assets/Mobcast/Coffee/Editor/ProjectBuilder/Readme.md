@@ -5,7 +5,7 @@ ProjectBuilder
 
 A tool for easy automating and customizing build process for Unity.
 
-![image](https://user-images.githubusercontent.com/12690315/28651048-6b1903da-72ba-11e7-9dba-a82a3a021e1a.png)
+![image](https://user-images.githubusercontent.com/12690315/30955730-9db74e00-a46f-11e7-9628-ef5cb34a336f.png)
 
 * Build target
     * Build artifact is generated in `<project_dir>/build` directory or file.
@@ -83,16 +83,16 @@ For example, a build setting labeled 'Default iOS' on UCB, selects builder asset
 
 
 
-## How to add a platform to build?
+## How to add a supported build target to build?
 
-* Implement `IPlatformSettings` interface as following for platforms you need.
+* Implement `IBuildTargetSettings` interface as following for build targets you need.
 * Add `System.Serializable` attribute to the class to be serializable.
 
 ```cs
 [System.Serializable]
-public class PlatformSettings_WebGL : IPlatformSettings
+public class BuildTargetSettings_WebGL : IBuildTargetSettings
 {
-	public BuildTarget platform{get{ return BuildTarget.WebGL;}}
+	public BuildTarget buildTarget{get{ return BuildTarget.WebGL;}}
 	public Texture icon{get{ return EditorGUIUtility.FindTexture("BuildSettings.WebGL.Small");}}
 	public void Reset(){}
 	public void ApplySettings(ProjectBuilder builder){}

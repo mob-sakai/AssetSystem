@@ -99,8 +99,8 @@ namespace Mobcast.Coffee.Build
 		[Tooltip("整数のバージョンコードを指定します.\nAndroidの場合はVersionCode, iOSの場合はBuildNumberに相当します.\nこの値は、リリース毎に更新する必要があります.")]
 		public int versionCode = 0;
 
-		public PlatformSettings_iOS iosSettings = new PlatformSettings_iOS();
-		public PlatformSettings_Android androidSettings = new PlatformSettings_Android();
+		public BuildTargetSettings_iOS iosSettings = new BuildTargetSettings_iOS();
+		public BuildTargetSettings_Android androidSettings = new BuildTargetSettings_Android();
 
 
 		[System.Serializable]
@@ -127,11 +127,6 @@ namespace Mobcast.Coffee.Build
 		protected virtual void OnApplySetting()
 		{
 		}
-
-		//		/// <summary>ビルド後コールバック.</summary>
-		//		protected virtual void OnPostBuildPlayer()
-		//		{
-		//		}
 
 
 		//-------------------------------
