@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEngine.Networking;
 using Object = UnityEngine.Object;
 using System.Text;
+using System.IO;
 
 namespace Mobcast.Coffee.AssetSystem
 {
@@ -14,6 +15,8 @@ namespace Mobcast.Coffee.AssetSystem
 	/// </summary>
 	public abstract class AssetOperation : CustomYieldInstruction
 	{
+		protected const string kLog = "[AssetManager] ";
+
 //		public object Current { get { return null; } }
 
 		/// <summary>Operation identifier.</summary>
@@ -43,17 +46,17 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			catch (System.Exception ex)
 			{
-				Debug.LogException(ex);
+				error = ex.Message;
 			}
-			finally
-			{
-				onComplete = null;
-			}
+
+			if (!string.IsNullOrEmpty(error))
+				Debug.LogErrorFormat("{0} {1} エラー: {2}, {3}", kLog, GetType().Name, error, id);
+			onComplete = null;
 		}
 
 		public virtual void OnCancel()
 		{
-			error = "operation has been canceled";
+			Debug.LogWarningFormat("{0} {1} キャンセルしました: {2}, {3}", kLog, GetType().Name, error, id);
 			onComplete = null;
 		}
 	}
@@ -64,8 +67,6 @@ namespace Mobcast.Coffee.AssetSystem
 	public class BundleLoadOperation : AssetOperation
 	{
 		public AssetBundle assetBundle { get; protected set; }
-
-//		public override float progress { get { return m_request != null ? m_request.downloadProgress : 1; } }
 
 		UnityWebRequest m_request;
 
@@ -85,7 +86,6 @@ namespace Mobcast.Coffee.AssetSystem
 			id = GetId(bundleName);
 			m_request = request;
 			m_request.Send();
-//			id = System.IO.Path.GetFileName(m_request.url);
 		}
 
 		public override bool keepWaiting
@@ -97,35 +97,29 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			progress = m_request != null ? m_request.downloadProgress : 1;
 
-
 			return base.Update();
 		}
 
 		public override void OnComplete()
 		{
-			Debug.Log("BundleLoadOperation OnComplete" + id);
-
-
 			if (m_request == null)
 			{
 			}
 			else if (!string.IsNullOrEmpty(m_request.error))
 			{
 				error = m_request.error;
-				Debug.LogError(error);
 			}
 			else
 			{
 				var handler = m_request.downloadHandler as DownloadHandlerAssetBundle;
 				if (handler == null || handler.assetBundle == null)
 				{
-					error = string.Format("{0} is not a valid asset bundle.", m_request.url);
-					Debug.LogError(error);
+					error = string.Format("無効なアセットバンドルです : {0}", m_request.url);
 				}
 				else
 				{
 					assetBundle = handler.assetBundle;
-					AssetManager.AddDepend(System.IO.Path.GetFileName(m_request.url), null);
+					AssetManager.AddDepend(assetBundle.name, null);
 				}
 			}
 
@@ -141,8 +135,6 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public override void OnCancel()
 		{
-			error = "operation has been canceled";
-
 			if (m_request != null)
 			{
 				if (!m_request.isDone)
@@ -183,29 +175,42 @@ namespace Mobcast.Coffee.AssetSystem
 			m_AssetName = assetName;
 			m_Type = type;
 			id = GetId(m_AssetBundleName, m_AssetName, m_Type);
+
+			// ランタイムキャッシュに存在すれば、そのまま利用
 			if (AssetManager.m_RuntimeCache.TryGetValue(id, out m_Object))
 				return;
 
 			AssetManager.AddDepend(m_AssetBundleName, id);
 
 #if UNITY_EDITOR
+			// シミュレーションモード中. アセットバンドルはAssetDataBaseを利用してロード.
 			// Simulation mode (only in editor).
 			if (AssetManager.isSimulationMode && !assetName.Contains("://"))
 			{
-				var pathes = !string.IsNullOrEmpty(bundleName)
-					? UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
-					: UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, System.IO.Path.GetFileName(assetName)))
-						.Select(guid=>UnityEditor.AssetDatabase.GUIDToAssetPath(guid))
-						.ToArray();
-				
-				var asset = pathes.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type)).FirstOrDefault();
-				if (asset)
+				// Resources からロードします.
+				if(string.IsNullOrEmpty(bundleName))
 				{
-					m_Object = asset;
+					var relativePath = string.Format("resources/{0}.", assetName).ToLower();
+					m_Object = UnityEditor.AssetDatabase.FindAssets(string.Format("t:{0} {1}", type.Name, Path.GetFileName(assetName)))
+						.Select(guid=>UnityEditor.AssetDatabase.GUIDToAssetPath(guid).ToLower())
+						.Where(x=> x.Contains(relativePath))
+						.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type))
+						.FirstOrDefault();
 				}
+				// AssetBundle からロードします.
 				else
 				{
-					error = "error : loading error : " + id;
+					m_Object = UnityEditor.AssetDatabase.GetAssetPathsFromAssetBundleAndAssetName(bundleName, assetName)
+						.Select(x => UnityEditor.AssetDatabase.LoadAssetAtPath(x, type))
+						.FirstOrDefault();
+				}
+				
+				if (!m_Object)
+				{
+					if(string.IsNullOrEmpty(m_AssetBundleName))
+						error = string.Format("アセット {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_AssetName);
+					else
+						error = string.Format("アセットバンドル {0} 内に、アセット {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_AssetName);
 				}
 				progress = 1f;
 				return;
@@ -250,9 +255,6 @@ namespace Mobcast.Coffee.AssetSystem
 		public T GetAsset<T>() where T : Object
 		{
 			return m_Object as T;
-//			// Operation has been cached.
-//			Object obj = null;
-//			return AssetManager.m_RuntimeCache.TryGetValue(id, out obj) ? obj as T : null;
 		}
 
 		// Returns true if more Update calls are required.
@@ -273,16 +275,12 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				AssetBundle bundle;
 
-//				if (AssetManager.Manifest && !AssetManager.Manifest.GetAllDependencies( m_AssetBundleName ).All(AssetManager.m_LoadedAssetBundles.ContainsKey))
-//				{
-//					return true;
-//				}
-//				if (AssetManager.m_LoadedAssetBundles.TryGetValue(m_AssetBundleName, out bundle))
 				if (AssetManager.TryGetBundle(m_AssetBundleName, out bundle))
 				{
+					// バンドルロードに失敗している
 					if (!bundle)
 					{
-						error = "error : bundle loading error XXX";
+						error = string.Format("アセットバンドル {0} のロードに失敗しているため、アセット {1} をロードできません", m_AssetBundleName, m_AssetName);
 						return false;
 					}
 					else
@@ -314,30 +312,27 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public override void OnComplete()
 		{
-			Debug.Log(id + " OnComplete. " + m_Request);
-
 			AssetManager.SubDepend(m_AssetBundleName, id);
 
-
+			// Web、StreamingAssets、デバイス内からのロード
 			// Asset in Web or StreamingAssets.
 			if (m_WebRequest != null)
 			{
-				Debug.Log(" m_WebRequest. " + m_WebRequest.isDone + ", " + m_WebRequest.error);
 				error = m_WebRequest.error;
-
 				if (m_WebRequest.isDone && string.IsNullOrEmpty(error))
 				{
-					Object asset = null;
 					if (m_Type == typeof(Texture2D))
-						asset = (m_WebRequest.downloadHandler as CacheableDownloadHandlerTexture).texture;
+					{
+						m_Object = (m_WebRequest.downloadHandler as CacheableDownloadHandlerTexture).texture;
+					}
 					else if (m_Type == typeof(AudioClip))
-						asset = (m_WebRequest.downloadHandler as DownloadHandlerAudioClip).audioClip;
+					{
+						m_Object = (m_WebRequest.downloadHandler as DownloadHandlerAudioClip).audioClip;
+					}
 					else
 					{
-						Debug.Log("data; " + m_WebRequest.downloadHandler.text);
-						asset = PlainObject.Create(m_WebRequest.downloadHandler.data);
+						m_Object = PlainObject.Create(m_WebRequest.downloadHandler.data);
 					}
-					m_Object = asset;
 				}
 
 				if (!m_WebRequest.isDone)
@@ -345,27 +340,24 @@ namespace Mobcast.Coffee.AssetSystem
 				m_WebRequest.Dispose();
 				m_WebRequest = null;
 			}
+			// Resources内のアセットロード
 			// Asset in Resources.
 			else if (m_Request is ResourceRequest)
 			{
-				Debug.Log(" ResourceRequest. " + (m_Request as ResourceRequest).asset);
 				if ((m_Request as ResourceRequest).asset)
 					m_Object = (m_Request as ResourceRequest).asset;
 				else
-					error = " not found " + id;
+					error = string.Format("Resources内に、アセット {1} が見つかりませんでした", m_AssetBundleName, m_AssetName);
 			}
+			// アセットバンドル内のアセットロード
 			// Asset in AssetBundle.
 			else if (m_Request is AssetBundleRequest)
 			{
-				Debug.Log(" AssetBundleRequest. " + (m_Request as AssetBundleRequest).asset);
 				if ((m_Request as AssetBundleRequest).asset)
 					m_Object = (m_Request as AssetBundleRequest).asset;
 				else
-					error = " not found " + id;
+					error = string.Format("アセットバンドル {0} 内に、アセット {1} が見つかりませんでした", m_AssetBundleName, m_AssetName);
 			}
-
-			if (!string.IsNullOrEmpty(error))
-				Debug.LogError(error);
 
 			base.OnComplete();
 		}

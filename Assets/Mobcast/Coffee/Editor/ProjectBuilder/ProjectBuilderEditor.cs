@@ -82,7 +82,6 @@ namespace Mobcast.Coffee.Build
 			sp.Next(true);
 			while (sp.Next(false))
 				s_EndBasePropertyName = sp.name;
-			DestroyImmediate(dummy);
 
 
 			// Scene list.
@@ -121,6 +120,7 @@ namespace Mobcast.Coffee.Build
 			roBuilderList.draggable = false;
 
 			contentTitle = EditorGUIUtility.ObjectContent(dummy, typeof(ProjectBuilder));
+			DestroyImmediate(dummy);
 		}
 		//---- ▲ GUIキャッシュ ▲ ----
 

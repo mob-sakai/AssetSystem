@@ -21,7 +21,6 @@ namespace Mobcast.Coffee.AssetSystem
 		public string text { get { return m_Text ?? (m_Text = Encoding.UTF8.GetString(bytes)); } }
 
 		string m_Text;
-
 	}
 
 	[System.Serializable]
@@ -47,7 +46,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 
 	[System.Serializable]
-	public class PatchList :  ISerializationCallbackReceiver
+	public class PatchHistory :  ISerializationCallbackReceiver
 	{
 		public void OnBeforeSerialize()
 		{
@@ -65,41 +64,5 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public Patch[] patchList = new Patch[0];
 		[System.NonSerialized] public Patch leatestPatch;
-	}
-
-
-	[System.Serializable]
-	public class BuildManifest
-	{
-		public static BuildManifest Load()
-		{
-			var json = Resources.Load<TextAsset>("UnityCloudBuildManifest.json") ?? Resources.Load<TextAsset>("BuildManifest.json");
-			if (json == null)
-			{
-				return new BuildManifest();
-			}
-			else
-			{
-				return JsonUtility.FromJson<BuildManifest>(json.text);
-			}
-		}
-
-		public string scmCommitId;
-
-		public string scmBranch;
-
-		public string buildNumber;
-
-		public string buildStartTime;
-
-		public string projectId;
-
-		public string bundleId;
-
-		public string unityVersion;
-
-		public string xcodeVersion;
-
-		public string cloudBuildTargetName;
 	}
 }

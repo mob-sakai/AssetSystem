@@ -47,11 +47,11 @@ namespace Mobcast.Coffee.AssetSystem
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
 		public static Dictionary<string, UnityEngine.Object> m_RuntimeCache = new Dictionary<string, UnityEngine.Object>();
 		public static Dictionary<string, HashSet<string>> m_Depended = new Dictionary<string, HashSet<string>>();
-		static HashSet<string> m_Unloadable = new HashSet<string>();
+		static readonly HashSet<string> m_Unloadable = new HashSet<string>();
 
 		public static StringBuilder errorLog = new StringBuilder();
 
-		public static PatchList patchList = new PatchList();
+		public static PatchHistory history = new PatchHistory();
 
 
 
@@ -232,7 +232,7 @@ namespace Mobcast.Coffee.AssetSystem
 			#else
 			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
 			#endif
-			patchList = new PatchList();
+			history = new PatchHistory();
 			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
 			SetPatch(patch);
 			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
@@ -565,25 +565,25 @@ namespace Mobcast.Coffee.AssetSystem
 			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetPatch);
 		}
 
-		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchList> onComplete = null)
+		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchHistory> onComplete = null)
 		{
 			Debug.LogFormat("{0}パッチリストの更新　開始 : {1}", kLog, url);
 
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
-					patchList = new PatchList();
+					history = new PatchHistory();
 
 					try
 					{
-						JsonUtility.FromJsonOverwrite(txt ? txt.text : "{}", patchList);
+						JsonUtility.FromJsonOverwrite(txt ? txt.text : "{}", history);
 					}
 					catch (Exception e)
 					{
 						Debug.LogErrorFormat("{0}パッチリストの更新　失敗 : {1}", kLog, e.Message);
 					}
 
-					patch = patchList.leatestPatch;
-					onComplete(patchList);
+					patch = history.leatestPatch;
+					onComplete(history);
 				});
 		}
 

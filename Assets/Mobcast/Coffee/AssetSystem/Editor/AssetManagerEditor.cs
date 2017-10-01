@@ -253,13 +253,13 @@ namespace Mobcast.Coffee.AssetSystem
 
 
 			GUILayout.Space(20);
-			GUILayout.Label("バージョンリスト", EditorStyles.boldLabel);
+			GUILayout.Label("パッチ履歴", EditorStyles.boldLabel);
 			using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
 			{
-				foreach (var version in AssetManager.patchList.patchList)
+				foreach (var patch in AssetManager.history.patchList)
 				{
-					var date = new System.DateTime(1970, 1, 1).AddSeconds(version.deployTime).ToLocalTime().ToString("MM/dd hh:mm");
-					EditorGUILayout.LabelField(string.Format("{0} [{1}] {2}", date, version.commitHash.Substring(0, 4), version.comment));
+					var date = new System.DateTime(1970, 1, 1).AddSeconds(patch.deployTime).ToLocalTime().ToString("MM/dd hh:mm");
+					EditorGUILayout.LabelField(string.Format("{0} [{1}] {2}", date, patch.commitHash.Substring(0, 4), patch.comment));
 				}
 			}
 

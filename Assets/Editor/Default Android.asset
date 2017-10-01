@@ -15,13 +15,13 @@ MonoBehaviour:
   buildAssetBundle: 0
   copyToStreamingAssets: 0
   bundleOptions: 0
-  buildTarget: 0
-  developmentBuild: 0
+  buildTarget: 13
+  developmentBuild: 1
   defineSymbols: 
-  productName: 
-  companyName: 
-  applicationIdentifier: 
-  version: 
+  productName: AssetSystem
+  companyName: mobcast
+  applicationIdentifier: com.mobcast.assetsystem
+  version: 1.0
   versionCode: 0
   iosSettings:
     automaticallySign: 0
