@@ -21,7 +21,7 @@ namespace Mobcast.Coffee.Build
 
 
 		static GUIContent contentOpen;
-		static GUIContent contentTitle;
+		static GUIContent contentTitle = new GUIContent();
 		static ReorderableList roSceneList;
 		static ReorderableList roBuilderList;
 
@@ -119,6 +119,8 @@ namespace Mobcast.Coffee.Build
 			};
 			roBuilderList.headerHeight = 0;
 			roBuilderList.draggable = false;
+
+			contentTitle = EditorGUIUtility.ObjectContent(dummy, typeof(ProjectBuilder));
 		}
 		//---- ▲ GUIキャッシュ ▲ ----
 
@@ -160,13 +162,10 @@ namespace Mobcast.Coffee.Build
 					: s_BuildersInProject.Take(1).ToArray();
 			
 			serializedObject = null;
-			
-			contentTitle = new GUIContent();
-			if (0 < builders.Length)
-			{
-				contentTitle.text = builders.Select(x => "  " + x.name).Aggregate((a, b) => a + "\n" + b);
-				contentTitle.image = EditorGUIUtility.ObjectContent(builders[0], typeof(ProjectBuilder)).image;
-			}
+
+			contentTitle.text = 0 < targets.Length
+				? targets.Select(x => "  " + x.name).Aggregate((a, b) => a + "\n" + b)
+				: "";
 		}
 
 		void OnSelectionChanged()

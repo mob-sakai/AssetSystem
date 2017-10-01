@@ -41,7 +41,7 @@ A tool for easy automating and customizing build process for Unity.
 
 ## Requirement
 
-* Unity5.3+
+* Unity5.3+ *(included Unity 2017.x)*
 * No other SDK
 
 
@@ -50,10 +50,10 @@ A tool for easy automating and customizing build process for Unity.
 ## Usage
 
 1. Download [ProjectBuilder.unitypackage](https://github.com/mob-sakai/ProjectBuilder/raw/develop/ProjectBuilder.unitypackage) and install to your project.
-2. From the menu, click `Coffee` > `Project Builder`
-3. Input build configurations...
-4. Click buid button
-5. Build artifact is generated in `<project_dir>/build` directory or file.
+1. From the menu, click `Coffee` > `Project Builder`
+1. Input build configurations.
+1. Click `Buid` button to build application.
+1. Build artifact is generated in `<project_dir>/build` directory or file.
 
 
 
@@ -77,8 +77,32 @@ For other infomation, see this link : <https://docs.unity3d.com/Manual/CommandLi
 ## Build on Unity Cloud Build(UCB)
 
 1. Type `Mobcast.Coffee.Build.ProjectBuilder.PreExport` at `Config > Advanced Settings > Pre-Export Method Name` on UCB.
-2. Builder asset used for building will be selected automatically based on build setting label.  
+1. Builder asset used for building will be selected automatically based on build setting label.  
 For example, a build setting labeled 'Default iOS' on UCB, selects builder asset named 'Default iOS' in project.
+
+
+
+
+## How to customize the builder for your project?
+
+1. Click `Create Custom Project Builder Script`
+1. Save script with dialog.
+1. Implement the script.  
+The serialized field is not only displayed in the inspector, it can also be used in PostProcessBuild as following.
+
+![image](https://user-images.githubusercontent.com/12690315/28651867-64891a28-72bf-11e7-911a-f7f13a371def.png)
+
+```cs
+[SerializeField] string stringParameter;
+
+[PostProcessBuild]
+protected static void OnPostProcessBuild(BuildTarget target, string path)
+{
+    CustomProjectBuilder current = Util.currentBuilder as CustomProjectBuilder;
+    Debug.Log(current.stringParameter);
+    ...
+}
+```
 
 
 
@@ -100,33 +124,20 @@ public class BuildTargetSettings_WebGL : IBuildTargetSettings
 }
 ```
 
-
-
-
-## How to customize the builder for your project?
-
-1. Click `Create Custom Project Builder Script`
-2. Implement the script.  
-The serialized field is not only displayed in the inspector, it can also be used in PostProcessBuild as following.
-
-![image](https://user-images.githubusercontent.com/12690315/28651867-64891a28-72bf-11e7-911a-f7f13a371def.png)
-
+* Add serialized field to `ProjectBuilder` or `Custom ProjectBuilder` as following.
 ```cs
-[SerializeField] string stringParameter;
-
-[PostProcessBuild]
-protected static void OnPostProcessBuild(BuildTarget target, string path)
-{
-    CustomProjectBuilder current = Util.currentBuilder as CustomProjectBuilder;
-    Debug.Log(current.stringParameter);
-    ...
-}
+public BuildTargetSettings_WebGL webGlSettings = new BuildTargetSettings_WebGL();
 ```
 
 
 
 
 ## Release Notes
+
+### ver.0.9.1:
+
+* Fixed: Build target on edit multiple builder.
+* Changed: Rename `IPlatformSettings` to `IBuildTargetSettings`.
 
 ### ver.0.9.0:
 

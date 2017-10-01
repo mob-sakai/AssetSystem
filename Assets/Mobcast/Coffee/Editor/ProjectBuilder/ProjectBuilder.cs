@@ -101,6 +101,7 @@ namespace Mobcast.Coffee.Build
 
 		public BuildTargetSettings_iOS iosSettings = new BuildTargetSettings_iOS();
 		public BuildTargetSettings_Android androidSettings = new BuildTargetSettings_Android();
+		public BuildTargetSettings_WebGL webGlSettings = new BuildTargetSettings_WebGL();
 
 
 		[System.Serializable]
