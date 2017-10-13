@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using System.Text;
 
 namespace Mobcast.Coffee.Build
 {
@@ -18,22 +19,9 @@ namespace Mobcast.Coffee.Build
 		//-------------------------------
 		//	ビルド概要.
 		//-------------------------------
-
 		/// <summary>Buid Application.</summary>
 		[Tooltip("Buid Application.")]
 		public bool buildApplication = true;
-
-		/// <summary>Buid AssetBundle.</summary>
-		[Tooltip("Buid AssetBundle.")]
-		public bool buildAssetBundle;
-
-		/// <summary>copyToStreamingAssets.</summary>
-		[Tooltip("copyToStreamingAssets.")]
-		public bool copyToStreamingAssets;
-
-		/// <summary>AssetBundle options.</summary>
-		[Tooltip("AssetBundle options.")]
-		public BundleOptions bundleOptions;
 
 		/// <summary>ビルドターゲットを指定します.</summary>
 		[Tooltip("ビルドターゲットを指定します.")]
@@ -44,15 +32,6 @@ namespace Mobcast.Coffee.Build
 
 		/// <summary>Build target group for this builder asset.</summary>
 		public BuildTargetGroup buildTargetGroup { get { return BuildPipeline.GetBuildTargetGroup(actualBuildTarget); } }
-
-		/// <summary>BuildOptions.Development and BuildOptions.AllowDebugging.</summary>
-		[Tooltip("BuildOptions.Development and BuildOptions.AllowDebugging.")]
-		public bool developmentBuild = false;
-
-		/// <summary>Define Script Symbols. If you have multiple definitions, separate with a semicolon(;)</summary>
-		[Tooltip("Define Script Symbols.\nIf you have multiple definitions, separate with a semicolon(;)")]
-		[TextArea(1, 5)]
-		public string defineSymbols = "";
 
 		/// <summary>端末に表示されるプロダクト名を指定します.</summary>
 		[Tooltip("端末に表示されるプロダクト名を指定します.")]
@@ -78,9 +57,6 @@ namespace Mobcast.Coffee.Build
 			}
 		}
 
-		/// <summary>アセットバンドルビルドパス.</summary>
-		public string bundleOutputPath { get { return "AssetBundles/" + actualBuildTarget; } }
-
 		/// <summary>ビルド成果物出力先フルパス.</summary>
 		public string outputFullPath { get { return Path.Combine(Util.projectDir, outputPath); } }
 
@@ -96,6 +72,47 @@ namespace Mobcast.Coffee.Build
 		[Tooltip("整数のバージョンコードを指定します.\nAndroidの場合はVersionCode, iOSの場合はBuildNumberに相当します.\nこの値は、リリース毎に更新する必要があります.")]
 		public int versionCode = 0;
 
+
+		//-------------------------------
+		//	Advanced Options.
+		//-------------------------------
+		/// <summary>BuildOptions.Development and BuildOptions.AllowDebugging.</summary>
+		[Tooltip("BuildOptions.Development and BuildOptions.AllowDebugging.")]
+		public bool developmentBuild = false;
+
+		/// <summary>Define Script Symbols. If you have multiple definitions, separate with a semicolon(;)</summary>
+		[Tooltip("Define Script Symbols.\nIf you have multiple definitions, separate with a semicolon(;)")]
+		[TextArea(1, 5)]
+		public string defineSymbols = "";
+
+		/// <summary>Enable/Disable scenes in build</summary>
+		public SceneSetting[] scenes = new SceneSetting[]{ };
+
+		/// <summary>Ignore directories in build</summary>
+		public string[] excludeDirectories = new string[]{ };
+
+		//-------------------------------
+		//	AssetBundles.
+		//-------------------------------
+		/// <summary>Buid AssetBundle.</summary>
+		[Tooltip("Buid AssetBundle.")]
+		public bool buildAssetBundle;
+
+		/// <summary>copyToStreamingAssets.</summary>
+		[Tooltip("copyToStreamingAssets.")]
+		public bool copyToStreamingAssets;
+
+		/// <summary>AssetBundle options.</summary>
+		[Tooltip("AssetBundle options.")]
+		public BundleOptions bundleOptions;
+
+		/// <summary>アセットバンドルビルドパス.</summary>
+		public string bundleOutputPath { get { return "AssetBundles/" + actualBuildTarget; } }
+
+
+		//-------------------------------
+		//	Build Target Settings.
+		//-------------------------------
 		public BuildTargetSettings_iOS iosSettings = new BuildTargetSettings_iOS();
 		public BuildTargetSettings_Android androidSettings = new BuildTargetSettings_Android();
 		public BuildTargetSettings_WebGL webGlSettings = new BuildTargetSettings_WebGL();
@@ -115,7 +132,6 @@ namespace Mobcast.Coffee.Build
 			Uncompressed = BuildAssetBundleOptions.UncompressedAssetBundle,
 		}
 
-		public SceneSetting[] scenes = new SceneSetting[]{ };
 
 
 		//-------------------------------
@@ -233,11 +249,61 @@ namespace Mobcast.Coffee.Build
 		{
 			try
 			{
+				AssetBundleManifest oldManifest = null;
+				var manifestPath = Path.Combine(bundleOutputPath, actualBuildTarget.ToString());
+				if(File.Exists(manifestPath))
+				{
+					var manifestAssetBundle = AssetBundle.LoadFromFile(manifestPath);
+					oldManifest = manifestAssetBundle
+						? manifestAssetBundle.LoadAsset<AssetBundleManifest>("assetbundlemanifest")
+						: null;
+				}
+
 				UnityEngine.Debug.Log(kLogType + "BuildAssetBundles is started.");
 
 				Directory.CreateDirectory(bundleOutputPath);
 				BuildAssetBundleOptions opt = (BuildAssetBundleOptions)bundleOptions | BuildAssetBundleOptions.DeterministicAssetBundle;
-				BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, actualBuildTarget);
+				var newManifest = BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, actualBuildTarget);
+
+				var sb = new StringBuilder(kLogType + "AssetBundle report");
+				string[] array;
+				if(oldManifest)
+				{
+					// 差分をログ出力.
+					var oldBundles = new HashSet<string>(oldManifest ? oldManifest.GetAllAssetBundles() : new string[]{});
+					var newBundles = new HashSet<string>(newManifest.GetAllAssetBundles());
+
+					// 新規
+					array = newBundles.Except(oldBundles).ToArray();
+					sb.AppendFormat("\n[Added]: {0}\n", array.Length);
+					foreach(var bundleName in array)
+						sb.AppendLine("  > " + bundleName);
+					
+					// 削除
+					array = oldBundles.Except(newBundles).ToArray();
+					sb.AppendFormat("\n[Deleted]: {0}\n", array.Length);
+					foreach(var bundleName in array)
+						sb.AppendLine("  > " + bundleName);
+					
+					// 更新
+					array = oldBundles
+						.Intersect(newBundles)
+						.Where(x=>!Hash128.Equals( oldManifest.GetAssetBundleHash(x), newManifest.GetAssetBundleHash(x)))
+						.ToArray();
+					sb.AppendFormat("\n[Updated]: {0}\n", array.Length);
+					foreach(var bundleName in array)
+						sb.AppendLine("  > " + bundleName);
+				}
+				else
+				{
+					// 新規
+					array = newManifest.GetAllAssetBundles();
+					sb.AppendFormat("\n[Added]: {0}\n", array.Length);
+					foreach(var bundleName in array)
+						sb.AppendLine("  > " + bundleName);
+				}
+				UnityEngine.Debug.Log(sb);
+
 
 				if (copyToStreamingAssets)
 				{
@@ -273,6 +339,10 @@ namespace Mobcast.Coffee.Build
 
 			if (buildApplication)
 			{
+				// Exclude directories.
+				foreach(var dir in excludeDirectories)
+					Util.ExcludeDirectory(dir);
+
 				// Build options.
 				BuildOptions opt = developmentBuild ? (BuildOptions.Development & BuildOptions.AllowDebugging) : BuildOptions.None
 				                   | (autoRunPlayer ? BuildOptions.AutoRunPlayer : BuildOptions.None);
@@ -283,6 +353,9 @@ namespace Mobcast.Coffee.Build
 				// Start build.
 				UnityEngine.Debug.Log(kLogType + "BuildPlayer is started. Defined symbols : " + PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup));
 				string errorMsg = BuildPipeline.BuildPlayer(scenesToBuild, outputFullPath, actualBuildTarget, opt);
+
+				// Revert excluded directories.
+				Util.RevertExcludedDirectory();
 
 				if (string.IsNullOrEmpty(errorMsg))
 				{
