@@ -35,12 +35,15 @@ namespace Mobcast.Coffee.Build
 		[Tooltip("AssetBundle options.")]
 		public BundleOptions bundleOptions;
 
-		/// <summary>ビルドプラットフォームを指定します.</summary>
-		[Tooltip("ビルドプラットフォームを指定します.")]
+		/// <summary>ビルドターゲットを指定します.</summary>
+		[Tooltip("ビルドターゲットを指定します.")]
 		public BuildTarget buildTarget;
 
+		/// <summary>ビルドに利用するターゲット.</summary>
+		public BuildTarget actualBuildTarget { get { return buildApplication ? buildTarget : EditorUserBuildSettings.activeBuildTarget; } }
+
 		/// <summary>Build target group for this builder asset.</summary>
-		public BuildTargetGroup buildTargetGroup { get { return BuildPipeline.GetBuildTargetGroup(buildTarget); } }
+		public BuildTargetGroup buildTargetGroup { get { return BuildPipeline.GetBuildTargetGroup(actualBuildTarget); } }
 
 		/// <summary>BuildOptions.Development and BuildOptions.AllowDebugging.</summary>
 		[Tooltip("BuildOptions.Development and BuildOptions.AllowDebugging.")]
@@ -68,7 +71,7 @@ namespace Mobcast.Coffee.Build
 		{
 			get
 			{
-				if (buildTarget == BuildTarget.Android && !EditorUserBuildSettings.exportAsGoogleAndroidProject)
+				if (actualBuildTarget == BuildTarget.Android && !EditorUserBuildSettings.exportAsGoogleAndroidProject)
 					return "build.apk";
 				else
 					return "build";
@@ -76,13 +79,7 @@ namespace Mobcast.Coffee.Build
 		}
 
 		/// <summary>アセットバンドルビルドパス.</summary>
-		public string bundleOutputPath
-		{
-			get
-			{
-				return "AssetBundles/" + buildTarget;
-			}
-		}
+		public string bundleOutputPath { get { return "AssetBundles/" + actualBuildTarget; } }
 
 		/// <summary>ビルド成果物出力先フルパス.</summary>
 		public string outputFullPath { get { return Path.Combine(Util.projectDir, outputPath); } }
@@ -146,7 +143,7 @@ namespace Mobcast.Coffee.Build
 			version = PlayerSettings.bundleVersion;
 			defineSymbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup);
 
-			//Platform settings.
+			// Build target settings.
 			androidSettings.Reset();
 			iosSettings.Reset();
 		}
@@ -220,7 +217,7 @@ namespace Mobcast.Coffee.Build
 				.Where(x => !scenes.Any(y => !y.enable && y.name == Path.GetFileName(x.path)))
 				.ToArray();
 
-			//Platform settings.
+			// Build target settings.
 			iosSettings.ApplySettings(this);
 			androidSettings.ApplySettings(this);
 
@@ -240,7 +237,7 @@ namespace Mobcast.Coffee.Build
 
 				Directory.CreateDirectory(bundleOutputPath);
 				BuildAssetBundleOptions opt = (BuildAssetBundleOptions)bundleOptions | BuildAssetBundleOptions.DeterministicAssetBundle;
-				BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, buildTarget);
+				BuildPipeline.BuildAssetBundles(bundleOutputPath, opt, actualBuildTarget);
 
 				if (copyToStreamingAssets)
 				{
@@ -285,7 +282,7 @@ namespace Mobcast.Coffee.Build
 
 				// Start build.
 				UnityEngine.Debug.Log(kLogType + "BuildPlayer is started. Defined symbols : " + PlayerSettings.GetScriptingDefineSymbolsForGroup(buildTargetGroup));
-				string errorMsg = BuildPipeline.BuildPlayer(scenesToBuild, outputFullPath, buildTarget, opt);
+				string errorMsg = BuildPipeline.BuildPlayer(scenesToBuild, outputFullPath, actualBuildTarget, opt);
 
 				if (string.IsNullOrEmpty(errorMsg))
 				{
