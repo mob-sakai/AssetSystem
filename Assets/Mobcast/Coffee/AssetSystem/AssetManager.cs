@@ -849,7 +849,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (operation == null)
 			{
 				operation = new SceneLoadOperation(assetBundleName, levelName, isAdditive);
-				operation.onComplete += Debug.LogFormat("{0}シーンロード完了: {1}", kLog, operationId);
+				operation.onComplete += () => Debug.LogFormat("{0}シーンロード完了: {1}", kLog, operationId);
 				m_InProgressOperations.Add(operation);
 			}
 
