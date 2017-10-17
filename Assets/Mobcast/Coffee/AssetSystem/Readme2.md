@@ -137,6 +137,7 @@ AssetManager.Preload();
     * 強いランタイムキャッシュクリア
 * Resources、StreamingAssets、Web(Texture/Audio/Text/Bytes)からのロード
 * リソースバージョン(json)
+* Etagによるキャッシュ付きダウンロード
 
 ### オミット
 * ローカルサーバ
@@ -163,6 +164,11 @@ AssetManager.Preload();
 
 
 ## Release Notes
+
+### ver.0.3.0:
+
+* ギャップチェック
+* ランタイムキャッシュバリデーション
 
 ### ver.0.2.0:
 
