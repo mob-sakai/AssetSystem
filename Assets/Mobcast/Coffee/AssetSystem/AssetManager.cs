@@ -52,7 +52,7 @@ namespace Mobcast.Coffee.AssetSystem
 		public static StringBuilder errorLog = new StringBuilder();
 
 		public static PatchHistory history = new PatchHistory();
-
+		public static readonly Hash128 Hash128Zero = new Hash128(0,0,0,0);
 
 
 		#if UNITY_EDITOR
@@ -129,7 +129,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			patchServerURL = "http://localhost:7888/";
 			patch = new Patch(){ comment = "LocalServerMode", commitHash = "" };
-			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定しました : {1}", kLog, patchServerURL);
+			Debug.LogFormat("{0}ローカルサーバーモードに設定しました : {1}", kLog, patchServerURL);
 		}
 
 		/// <summary>
@@ -140,7 +140,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			SetPatchServerURL("SimulationMode");
 			patch = new Patch(){ comment = "SimulationMode", commitHash = "" };
-			Debug.LogWarningFormat("{0}シミュレーションモードに設定しました", kLog);
+			Debug.LogFormat("{0}シミュレーションモードに設定しました", kLog);
 
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
 		}
@@ -218,7 +218,7 @@ namespace Mobcast.Coffee.AssetSystem
 				url += "/";
 
 			patchServerURL = url;
-			Debug.LogWarningFormat("{0}パッチサーバーURLを設定しました : {1}", kLog, patchServerURL);
+			Debug.LogFormat("{0}パッチサーバーURLを設定しました : {1}", kLog, patchServerURL);
 		}
 
 		/// <summary>
@@ -235,7 +235,7 @@ namespace Mobcast.Coffee.AssetSystem
 			history = new PatchHistory();
 			patch = new Patch(){ comment = "StreamingAssets", commitHash = "" };
 			SetPatch(patch);
-			Debug.LogWarningFormat("{0}StreamingAssetsモードに設定しました", kLog);
+			Debug.LogFormat("{0}StreamingAssetsモードに設定しました", kLog);
 		}
 
 		/// <summary>
@@ -375,7 +375,9 @@ namespace Mobcast.Coffee.AssetSystem
 				var hash = Hash128.Parse(patch.commitHash);
 				// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
 				Debug.LogFormat("{0}アセットバンドルマニフェストのロード : {1}, {2}(キャッシュ済み:{3})", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
-				request = UnityWebRequest.GetAssetBundle(url, hash, 0);
+				request = hash == Hash128Zero
+						? UnityWebRequest.GetAssetBundle(url)
+						: UnityWebRequest.GetAssetBundle(url, hash, 0);
 			}
 			else
 			{
@@ -488,7 +490,18 @@ namespace Mobcast.Coffee.AssetSystem
 			if (operation == null)
 			{
 				operation = new AssetLoadOperation(assetBundleName, assetName, type);
-				operation.onComplete += () => AssetManager.m_RuntimeCache[operationId] = operation.GetAsset<Object>();
+				operation.onComplete += () =>
+				{
+					if(instance.ValidRuntimeCache(operationId))
+					{
+						Debug.LogFormat("{0}ランタイムキャッシュに追加: {1}", kLog, operationId);
+						AssetManager.m_RuntimeCache[operationId] = operation.GetAsset<Object>();
+					}
+					else
+					{
+						Debug.LogFormat("{0}ランタイムキャッシュ除外: {1}", kLog, operationId);
+					}
+				};
 				m_InProgressOperations.Add(operation);
 			}
 
@@ -512,14 +525,14 @@ namespace Mobcast.Coffee.AssetSystem
 		/// Starts download of manifest asset bundle.
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
-		/// <param name="manifest">Asset bundle manifest.</param>
-		static void SetPatch(AssetBundleManifest manifest)
+		/// <param name="newManifest">Asset bundle manifest.</param>
+		static void SetPatch(AssetBundleManifest newManifest)
 		{
 			Debug.LogFormat("{0}マニフェスト更新 : {1}", kLog, patch);
-			var oldManifest = manifest;
-			AssetManager.manifest = manifest;
+			var oldManifest = AssetManager.manifest;
+			AssetManager.manifest = newManifest;
 
-			if (!manifest)
+			if (!newManifest)
 			{
 				Debug.LogErrorFormat("{0}マニフェスト更新　失敗", kLog);
 				return;
@@ -527,19 +540,50 @@ namespace Mobcast.Coffee.AssetSystem
 
 			if (oldManifest)
 			{
-				Debug.LogFormat("{0}マニフェスト更新　ギャップチェック", kLog);
 			
 				var oldBundles = new HashSet<string>(oldManifest.GetAllAssetBundles());
-				var newBundles = new HashSet<string>(manifest.GetAllAssetBundles());
+				var newBundles = new HashSet<string>(newManifest.GetAllAssetBundles());
 
-				foreach (var name in oldBundles)
+
+
+				// 新規
+				var sb = new StringBuilder();
+				var array = newBundles.Except(oldBundles).ToArray();
+				sb.AppendFormat("[Added]: {0}\n", array.Length);
+				foreach(var bundleName in array)
+					sb.AppendLine("  > " + bundleName);
+
+				// 削除
+				array = oldBundles.Except(newBundles).ToArray();
+				sb.AppendFormat("\n[Deleted]: {0}\n", array.Length);
+				foreach(var bundleName in array)
+					sb.AppendLine("  > " + bundleName);
+
+				// 更新
+				array = oldBundles
+					.Intersect(newBundles)
+					.Select(name => new { name = name, oldHash = oldManifest.GetAssetBundleHash(name), newHash = newManifest.GetAssetBundleHash(name), })
+					.Where(x=>!Hash128.Equals( x.oldHash, x.newHash))
+					.Select(x=>string.Format("{0} ({1} -> {2})", x.name, x.oldHash.ToString().Substring(0,4), x.newHash.ToString().Substring(0,4)))
+					.ToArray();
+				sb.AppendFormat("\n[Updated]: {0}\n", array.Length);
+				foreach(var bundleName in array)
+					sb.AppendLine("  > " + bundleName);
+
+				foreach (var name in oldBundles.Where(newBundles.Contains))
 				{
 					var oldHash = oldManifest.GetAssetBundleHash(name);
+					var newHash = newManifest.GetAssetBundleHash(name);
 
 					// The bundle has removed or changed. Need to delete cached bundle.
-					if (!newBundles.Contains(name) || oldHash != manifest.GetAssetBundleHash(name))
+					if (!Hash128.Equals( oldHash, newHash))
+					{
 						ClearCachedAssetBundle(name, oldHash);
+					}
 				}
+
+				Debug.LogFormat("{0}マニフェスト更新　ギャップチェック\n{1}", kLog, sb);
+
 			}
 			PlayerPrefs.SetString("AssetManager_Patch", JsonUtility.ToJson(patch));
 		}
@@ -643,7 +687,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void ClearRuntimeCacheAll()
 		{
-			Debug.LogFormat("{0}ランタイムキャッシュをすべて削除", kLog);
+			Debug.LogFormat("{0}ランタイムキャッシュを削除 : {1}件", kLog, m_RuntimeCache.Count);
 			m_RuntimeCache.Clear();
 		}
 
@@ -748,6 +792,19 @@ namespace Mobcast.Coffee.AssetSystem
 				m_Unloadable.Add(assetBundleName);
 				m_Depended.Remove(assetBundleName);
 			}
+		}
+
+		/// <summary>
+		/// オブジェクトをランタイムキャッシュに含めるかどうかを判定します.
+		/// このメソッドがtrueを返す時のみ、オブジェクトはランタイムキャッシュされます.
+		/// 引数idはオブジェクトアドレスです.
+		/// Resourcesからロードした場合: resources://<アセット名>
+		/// アセットバンドルからロードした場合: ab://<アセットバンドル名>/<アセット名>
+		/// webからロードした場合: https://リソースアドレス
+		/// </summary>
+		protected virtual bool ValidRuntimeCache(string id)
+		{
+			return !id.EndsWith("(AssetBundleManifest)");
 		}
 	}
 }
