@@ -41,6 +41,8 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static string patchServerURL { get; set; }
 
+		public static bool ready { get; protected set; }
+
 		public static Patch patch { get; private set; }
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
@@ -52,7 +54,7 @@ namespace Mobcast.Coffee.AssetSystem
 		public static StringBuilder errorLog = new StringBuilder();
 
 		public static PatchHistory history = new PatchHistory();
-		public static readonly Hash128 Hash128Zero = new Hash128(0,0,0,0);
+		public static readonly Hash128 Hash128Zero = new Hash128(0, 0, 0, 0);
 
 
 		#if UNITY_EDITOR
@@ -94,11 +96,13 @@ namespace Mobcast.Coffee.AssetSystem
 			if (isLocalServerMode)
 			{
 				EnableLocalServerMode();
+				ready = true;
 				yield break;
 			}
 			else if (isSimulationMode)
 			{
 				EnableSimulationMode();
+				ready = true;
 				yield break;
 			}
 
@@ -106,12 +110,14 @@ namespace Mobcast.Coffee.AssetSystem
 
 			patch = JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_Patch", "{}"));
 
-			// 最後に利用したパッチのマニフェストファイルはダウンロード済み？
+			// 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチを復元.
 			// Is the last used patch cached?
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
+				Debug.LogFormat("{0}最後に利用したパッチを復元", kLog);
 				yield return StartCoroutine(SetPatch(patch));
 			}
+			ready = true;
 			yield break;
 		}
 
@@ -129,6 +135,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			patchServerURL = "http://localhost:7888/";
 			patch = new Patch(){ comment = "LocalServerMode", commitHash = "" };
+
 			Debug.LogFormat("{0}ローカルサーバーモードに設定しました : {1}", kLog, patchServerURL);
 		}
 
@@ -374,7 +381,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				var hash = Hash128.Parse(patch.commitHash);
 				// If hash is not zero, manifest will be cached. Otherwise, always manifest will be downloaded.
-				Debug.LogFormat("{0}アセットバンドルマニフェストのロード : {1}, {2}(キャッシュ済み:{3})", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
+				Debug.LogFormat("{0}アセットバンドルマニフェストのロード(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
 				request = hash == Hash128Zero
 						? UnityWebRequest.GetAssetBundle(url)
 						: UnityWebRequest.GetAssetBundle(url, hash, 0);
@@ -492,14 +499,14 @@ namespace Mobcast.Coffee.AssetSystem
 				operation = new AssetLoadOperation(assetBundleName, assetName, type);
 				operation.onComplete += () =>
 				{
-					if(instance.ValidRuntimeCache(operationId))
+					if (instance.ValidRuntimeCache(operationId, type))
 					{
 						Debug.LogFormat("{0}ランタイムキャッシュに追加: {1}", kLog, operationId);
 						AssetManager.m_RuntimeCache[operationId] = operation.GetAsset<Object>();
 					}
 					else
 					{
-						Debug.LogFormat("{0}ランタイムキャッシュ除外: {1}", kLog, operationId);
+						Debug.LogWarningFormat("{0}ランタイムキャッシュから除外: {1}", kLog, operationId);
 					}
 				};
 				m_InProgressOperations.Add(operation);
@@ -550,24 +557,24 @@ namespace Mobcast.Coffee.AssetSystem
 				var sb = new StringBuilder();
 				var array = newBundles.Except(oldBundles).ToArray();
 				sb.AppendFormat("[Added]: {0}\n", array.Length);
-				foreach(var bundleName in array)
+				foreach (var bundleName in array)
 					sb.AppendLine("  > " + bundleName);
 
 				// 削除
 				array = oldBundles.Except(newBundles).ToArray();
 				sb.AppendFormat("\n[Deleted]: {0}\n", array.Length);
-				foreach(var bundleName in array)
+				foreach (var bundleName in array)
 					sb.AppendLine("  > " + bundleName);
 
 				// 更新
 				array = oldBundles
 					.Intersect(newBundles)
 					.Select(name => new { name = name, oldHash = oldManifest.GetAssetBundleHash(name), newHash = newManifest.GetAssetBundleHash(name), })
-					.Where(x=>!Hash128.Equals( x.oldHash, x.newHash))
-					.Select(x=>string.Format("{0} ({1} -> {2})", x.name, x.oldHash.ToString().Substring(0,4), x.newHash.ToString().Substring(0,4)))
+					.Where(x => !Hash128.Equals(x.oldHash, x.newHash))
+					.Select(x => string.Format("{0} ({1} -> {2})", x.name, x.oldHash.ToString().Substring(0, 4), x.newHash.ToString().Substring(0, 4)))
 					.ToArray();
 				sb.AppendFormat("\n[Updated]: {0}\n", array.Length);
-				foreach(var bundleName in array)
+				foreach (var bundleName in array)
 					sb.AppendLine("  > " + bundleName);
 
 				foreach (var name in oldBundles.Where(newBundles.Contains))
@@ -576,7 +583,7 @@ namespace Mobcast.Coffee.AssetSystem
 					var newHash = newManifest.GetAssetBundleHash(name);
 
 					// The bundle has removed or changed. Need to delete cached bundle.
-					if (!Hash128.Equals( oldHash, newHash))
+					if (!Hash128.Equals(oldHash, newHash))
 					{
 						ClearCachedAssetBundle(name, oldHash);
 					}
@@ -626,7 +633,7 @@ namespace Mobcast.Coffee.AssetSystem
 						Debug.LogErrorFormat("{0}パッチリストの更新　失敗 : {1}", kLog, e.Message);
 					}
 
-					patch = history.leatestPatch;
+//					patch = history.leatestPatch;
 					onComplete(history);
 				});
 		}
@@ -787,6 +794,10 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				m_Unloadable.Remove(assetBundleName);
 			}
+			else if (!instance.ValidBundleKeepLoaded(assetBundleName))
+			{
+				m_Unloadable.Remove(assetBundleName);
+			}
 			else
 			{
 				m_Unloadable.Add(assetBundleName);
@@ -802,9 +813,53 @@ namespace Mobcast.Coffee.AssetSystem
 		/// アセットバンドルからロードした場合: ab://<アセットバンドル名>/<アセット名>
 		/// webからロードした場合: https://リソースアドレス
 		/// </summary>
-		protected virtual bool ValidRuntimeCache(string id)
+		protected virtual bool ValidRuntimeCache(string id, Type type)
 		{
-			return !id.EndsWith("(AssetBundleManifest)");
+			return type != typeof(AssetBundleManifest) && type != typeof(PlainObject);
+		}
+
+		/// <summary>
+		/// アセットバンドルをオンメモリ上にキープし続けるかどうかを判定します.
+		/// </summary>
+		/// <param name="bundleName">Bundle name.</param>
+		protected virtual bool ValidBundleKeepLoaded(string bundleName)
+		{
+			return false;
+		}
+
+
+		public static SceneLoadOperation LoadLevelAsync(string assetBundleName, string levelName, bool isAdditive, Action onComplete = null)
+		{
+			string operationId = SceneLoadOperation.GetId(assetBundleName, levelName);
+
+			// Search same operation in progress to merge load complete callbacks.
+			SceneLoadOperation operation = null;
+			foreach (var progressOperation in m_InProgressOperations)
+			{
+				var op = progressOperation as SceneLoadOperation;
+				if (op != null && op.id == operationId)
+				{
+					operation = op;
+					break;
+				}
+			}
+
+
+			// When no same operation in progress, create new operation.
+			if (operation == null)
+			{
+				operation = new SceneLoadOperation(assetBundleName, levelName, isAdditive);
+				operation.onComplete += Debug.LogFormat("{0}シーンロード完了: {1}", kLog, operationId);
+				m_InProgressOperations.Add(operation);
+			}
+
+			// Add load complete callback.
+			if (onComplete != null)
+			{
+				operation.onComplete += onComplete;
+			}
+
+			return operation;
 		}
 	}
 }

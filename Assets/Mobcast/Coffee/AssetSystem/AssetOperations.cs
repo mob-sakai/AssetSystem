@@ -7,6 +7,10 @@ using UnityEngine.Networking;
 using Object = UnityEngine.Object;
 using System.Text;
 using System.IO;
+using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Mobcast.Coffee.AssetSystem
 {
@@ -444,6 +448,130 @@ namespace Mobcast.Coffee.AssetSystem
 		public override void OnCancel()
 		{
 			m_Operations.Clear();
+			base.OnCancel();
+		}
+	}
+
+
+
+	/// <summary>
+	/// アセットロードオペレーション
+	/// </summary>
+	public class SceneLoadOperation : AssetOperation
+	{
+		protected string m_AssetBundleName;
+		protected string m_SceneName;
+		protected System.Type m_Type;
+		protected bool m_IsAdditive;
+		protected AsyncOperation m_Request = null;
+
+		public static string GetId(string bundleName, string sceneName)
+		{
+			if(!string.IsNullOrEmpty(bundleName))
+				return string.Format("ab://{0}/{1}({2})", bundleName, sceneName, "Scene");
+			else
+				return string.Format("{0}({1})", sceneName, "Scene");
+		}
+
+		public SceneLoadOperation(string bundleName, string sceneName, bool isAdditive)
+		{
+			m_AssetBundleName = bundleName;
+			m_SceneName = sceneName;
+			m_IsAdditive = isAdditive;
+			id = GetId(m_AssetBundleName, m_SceneName);
+
+			AssetManager.AddDepend(m_AssetBundleName, id);
+
+			#if UNITY_EDITOR
+			// シミュレーションモード中. アセットバンドルはAssetDatabaseを利用してロード.
+			// Simulation mode (only in editor).
+			if (AssetManager.isSimulationMode)
+			{
+				var filter = string.IsNullOrEmpty(bundleName) ? "t:Scene" : "t:Scene b:" + bundleName;
+				var path = AssetDatabase.FindAssets(filter + " " + sceneName)
+					.Select(AssetDatabase.GUIDToAssetPath)
+					.FirstOrDefault(x=>Path.GetFileNameWithoutExtension(x) == sceneName);
+
+				if (!string.IsNullOrEmpty(path))
+				{
+					m_Request = isAdditive
+						? EditorApplication.LoadLevelAsyncInPlayMode(path)
+						: EditorApplication.LoadLevelAdditiveAsyncInPlayMode(path);
+				}
+				else
+				{
+					if(string.IsNullOrEmpty(m_AssetBundleName))
+						error = string.Format("シーン {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_SceneName);
+					else
+						error = string.Format("アセットバンドル {0} 内に、シーン {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_SceneName);
+				}
+
+				progress = 1f;
+				return;
+			}
+			#endif
+
+			// アセットバンドルではない.
+			if (string.IsNullOrEmpty(m_AssetBundleName))
+			{
+				m_Request = SceneManager.LoadSceneAsync(sceneName, isAdditive ? LoadSceneMode.Additive : LoadSceneMode.Single);
+			}
+		}
+
+		// Returns true if more Update calls are required.
+		public override bool Update()
+		{
+			// Return if meeting downloading error.
+			if (!string.IsNullOrEmpty(error))
+				return false;
+
+
+			progress = m_Request != null ? m_Request.progress : 0;
+
+			if (m_Request == null && !string.IsNullOrEmpty(m_AssetBundleName))
+			{
+				AssetBundle bundle;
+
+				if (AssetManager.TryGetBundle(m_AssetBundleName, out bundle))
+				{
+					// バンドルロードに失敗している
+					if (!bundle)
+					{
+						error = string.Format("アセットバンドル {0} のロードに失敗しているため、シーン {1} をロードできません", m_AssetBundleName, m_SceneName);
+						return false;
+					}
+					else
+					{
+						m_Request = SceneManager.LoadSceneAsync(m_SceneName, m_IsAdditive ? LoadSceneMode.Additive : LoadSceneMode.Single);
+					}
+				}
+			}
+
+			return keepWaiting;
+		}
+
+		/// <summary>Indicates if coroutine should be kept suspended.</summary>
+		public override bool keepWaiting
+		{
+			get
+			{
+				// Return if meeting downloading error.
+				if (!string.IsNullOrEmpty(error))
+					return false;
+
+				return m_Request == null || !m_Request.isDone;
+			}
+		}
+
+		public override void OnComplete()
+		{
+			AssetManager.SubDepend(m_AssetBundleName, id);
+			base.OnComplete();
+		}
+
+		public override void OnCancel()
+		{
+			AssetManager.SubDepend(m_AssetBundleName, id);
 			base.OnCancel();
 		}
 	}

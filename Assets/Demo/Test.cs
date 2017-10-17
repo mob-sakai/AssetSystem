@@ -32,7 +32,7 @@ public class Test : MonoBehaviour
 	public RawImage rawimage;
 
 
-	void Start()
+	IEnumerator Start()
 	{
 		prefabPatch.SetActive(false);
 
@@ -48,21 +48,10 @@ public class Test : MonoBehaviour
 			toggleServerSimulation.isOn = true;
 		#endif
 
+		yield return new WaitUntil(()=>AssetManager.ready);
 		OnClick_SelectServer();
 
 		InvokeRepeating("UpdateSummary", 0, 1);
-
-
-		var buildManifest = Resources.Load<TextAsset>("UnityCloudBuildManifest.json");
-		if(buildManifest)
-		{
-			Debug.Log(buildManifest.text);
-		}
-		else
-		{
-			Debug.Log("まにふぇすとないっす");
-
-		}
 	}
 
 	void Update()
@@ -124,8 +113,6 @@ public class Test : MonoBehaviour
 			string path = AssetManager.patchServerURL + "history.json";
 			AssetManager.UpdatePatchList(path, list =>
 				{
-					Debug.Log("パッチリストの更新");
-
 					if (list == null || list.patchList.Length == 0)
 					{
 						Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
