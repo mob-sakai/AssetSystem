@@ -190,7 +190,7 @@ namespace Mobcast.Coffee.AssetSystem
 	/// <summary>
 	/// Asset manager editor.
 	/// </summary>
-	[CustomEditor(typeof(AssetManager))]
+	[CustomEditor(typeof(AssetManager), true)]
 	public class AssetManagerEditor : Editor
 	{
 		public override void OnInspectorGUI()

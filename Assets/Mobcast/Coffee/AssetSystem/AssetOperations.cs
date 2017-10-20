@@ -111,7 +111,7 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			else if (!string.IsNullOrEmpty(m_request.error))
 			{
-				error = m_request.error;
+				error = string.Format("{0}, {1}", m_request.error, m_request.url);
 			}
 			else
 			{
@@ -455,7 +455,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 
 	/// <summary>
-	/// アセットロードオペレーション
+	/// シーンロードオペレーション
 	/// </summary>
 	public class SceneLoadOperation : AssetOperation
 	{
@@ -501,7 +501,7 @@ namespace Mobcast.Coffee.AssetSystem
 				else
 				{
 					if(string.IsNullOrEmpty(m_AssetBundleName))
-						error = string.Format("シーン {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_SceneName);
+						error = string.Format("シーン {0} が見つかりませんでした(シミュレーションモード)", m_SceneName);
 					else
 						error = string.Format("アセットバンドル {0} 内に、シーン {1} が見つかりませんでした(シミュレーションモード)", m_AssetBundleName, m_SceneName);
 				}
