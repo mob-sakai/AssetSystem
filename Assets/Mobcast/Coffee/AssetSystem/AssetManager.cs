@@ -608,7 +608,7 @@ namespace Mobcast.Coffee.AssetSystem
 				Debug.LogFormat("{0}マニフェスト更新　ギャップチェック\n{1}", kLog, sb);
 
 			}
-			leatestPatch = patch;
+			instance.leatestPatch = patch;
 			Debug.LogFormat("{0}マニフェスト更新　成功 : {1}", kLog, patch);
 		}
 
@@ -812,12 +812,12 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			if (depended != null && 0 < depended.Count)
 			{
-				Debug.LogFormat("{0} 依存関係の更新: 依存関係があるため、 {1} はアンロードできません. {2}", kLog, assetBundleName, Dump(depended));
+				// Debug.LogFormat("{0} 依存関係の更新: 依存関係があるため、 {1} はアンロードできません. {2}", kLog, assetBundleName, Dump(depended));
 				m_Unloadable.Remove(assetBundleName);
 			}
 			else if (instance.ValidBundleKeepLoaded(assetBundleName))
 			{
-				Debug.LogFormat("{0} 依存関係の更新: ValidBundleKeepLoaded により、 {1} はアンロードできません.", kLog, assetBundleName);
+				// Debug.LogFormat("{0} 依存関係の更新: ValidBundleKeepLoaded により、 {1} はアンロードできません.", kLog, assetBundleName);
 				m_Unloadable.Remove(assetBundleName);
 			}
 			else
@@ -866,7 +866,6 @@ namespace Mobcast.Coffee.AssetSystem
 					break;
 				}
 			}
-
 
 			// When no same operation in progress, create new operation.
 			if (operation == null)
