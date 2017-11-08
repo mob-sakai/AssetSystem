@@ -190,7 +190,7 @@ namespace Mobcast.Coffee.AssetSystem
 #if UNITY_EDITOR
 			// シミュレーションモード中. アセットバンドルはAssetDataBaseを利用してロード.
 			// Simulation mode (only in editor).
-			if (AssetManager.isSimulationMode && !assetName.Contains("://"))
+			if (AssetManager.isSimulationMode && !assetName.Contains("://") && type != typeof(AssetBundleManifest))
 			{
 				// Resources からロードします.
 				if(string.IsNullOrEmpty(bundleName))

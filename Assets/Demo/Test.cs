@@ -41,15 +41,18 @@ public class Test : MonoBehaviour
 		toggleServerLocal.gameObject.SetActive(Application.isEditor);
 		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
 
-		#if UNITY_EDITOR
+		yield return new WaitUntil(()=>AssetManager.ready);
+
+#if UNITY_EDITOR
 		if (AssetManager.isLocalServerMode)
 			toggleServerLocal.isOn = true;
 		else if (AssetManager.isSimulationMode)
 			toggleServerSimulation.isOn = true;
-		#endif
-
-		yield return new WaitUntil(()=>AssetManager.ready);
-		OnClick_SelectServer();
+		else
+#endif
+		{
+			OnClick_SelectServer();
+		}
 
 		InvokeRepeating("UpdateSummary", 0, 1);
 	}

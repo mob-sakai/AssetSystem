@@ -204,8 +204,8 @@ namespace Mobcast.Coffee.AssetSystem
 			using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
 			{
 
-				EditorGUILayout.Toggle("Sumilation Mode", AssetManager.isSimulationMode);
-				EditorGUILayout.Toggle("Local Server Mode", AssetManager.isLocalServerMode);
+//				EditorGUILayout.Toggle("Sumilation Mode", AssetManager.isSimulationMode);
+//				EditorGUILayout.Toggle("Local Server Mode", AssetManager.isLocalServerMode);
 
 
 //				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_DomainURL"));

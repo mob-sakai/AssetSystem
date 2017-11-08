@@ -120,6 +120,8 @@ namespace Mobcast.Coffee.AssetSystem
 				Debug.LogWarningFormat("{0}マニフェストがキャッシュにありません. 最後に利用したパッチ [{1}] は復元されません", kLog, patch);
 				ClearCachedAssetBundleAll();
 			}
+			ready = true;
+			Debug.LogFormat("{0}準備完了", kLog);
 
 #if UNITY_EDITOR
 			if (isLocalServerMode)
@@ -131,7 +133,7 @@ namespace Mobcast.Coffee.AssetSystem
 				EnableSimulationMode();
 			}
 #endif
-			ready = true;
+
 			yield break;
 		}
 
@@ -163,8 +165,6 @@ namespace Mobcast.Coffee.AssetSystem
 			patchServerURL = "SimulationMode/";
 			Debug.LogWarningFormat("{0}シミュレーションモードに設定", kLog);
 			history = new PatchHistory();
-			SetPatch(new Patch(){ comment = "SimulationMode", commitHash = "" });
-
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
 			isSimulationMode = true;
 		}
@@ -335,7 +335,7 @@ namespace Mobcast.Coffee.AssetSystem
 			string operationId = BundleLoadOperation.GetId(assetBundleName);
 
 #if UNITY_EDITOR
-			if (isSimulationMode)
+			if (isSimulationMode && !isLoadingAssetBundleManifest)
 			{
 				return new BundleLoadOperation(assetBundleName);
 			}
@@ -566,14 +566,20 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="newManifest">Asset bundle manifest.</param>
 		static void SetPatch(AssetBundleManifest newManifest)
 		{
+		Debug.Log("hogehoge!!!");
+
 			if (!newManifest)
 			{
 				Debug.LogErrorFormat("{0}マニフェスト更新　失敗 : {1}", kLog, patch);
 				return;
 			}
+		Debug.Log("hogehoge!!!");
 
 			var oldManifest = AssetManager.manifest;
 			AssetManager.manifest = newManifest;
+
+		Debug.Log("hogehoge!!!");
+
 			if (oldManifest)
 			{
 				var oldBundles = new HashSet<string>(oldManifest.GetAllAssetBundles());
@@ -670,7 +676,7 @@ namespace Mobcast.Coffee.AssetSystem
 			UnloadAssetbundlesAll();
 
 #if UNITY_EDITOR
-			if (isSimulationMode)
+			if(isSimulationMode && ready)
 				return null;
 #endif
 
