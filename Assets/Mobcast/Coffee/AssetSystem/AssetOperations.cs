@@ -50,6 +50,7 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			catch (System.Exception ex)
 			{
+				Debug.LogException(ex);
 				error = ex.Message;
 			}
 

@@ -68,9 +68,8 @@ namespace Mobcast.Coffee.AssetSystem
 		public const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
 		public const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
 
-		public static bool isSimulationMode { get { return UnityEditor.Menu.GetChecked(AssetManager.MenuText_SimulationMode); } }
-
-		public static bool isLocalServerMode { get { return UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode); } }
+		public static bool isSimulationMode { get; private set; }
+		public static bool isLocalServerMode { get; private set; }
 
 		#endif
 
@@ -102,6 +101,10 @@ namespace Mobcast.Coffee.AssetSystem
 
 		protected virtual IEnumerator Start()
 		{
+#if UNITY_EDITOR
+			isSimulationMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_SimulationMode);
+			isLocalServerMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode);
+#endif
 			yield return new WaitUntil(() => Caching.ready);
 
 			// 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチ(=マニフェスト)を復元.
@@ -109,8 +112,13 @@ namespace Mobcast.Coffee.AssetSystem
 			patch = leatestPatch;
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
-				Debug.LogFormat("{0}最後に利用したパッチを復元 {1}", kLog, patch);
+				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元", kLog, patch);
 				yield return StartCoroutine(SetPatch(patch));
+			}
+			else
+			{
+				Debug.LogWarningFormat("{0}マニフェストがキャッシュにありません. 最後に利用したパッチ [{1}] は復元されません", kLog, patch);
+				ClearCachedAssetBundleAll();
 			}
 
 #if UNITY_EDITOR
@@ -140,9 +148,10 @@ namespace Mobcast.Coffee.AssetSystem
 				UnityEditor.EditorApplication.ExecuteMenuItem(MenuText_LocalServerMode);
 
 			patchServerURL = "http://localhost:7888/";
-			Debug.LogFormat("{0}ローカルサーバーモードに設定 : {1}", kLog, patchServerURL);
+			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定 : {1}", kLog, patchServerURL);
 			history = new PatchHistory();
 			SetPatch(new Patch(){ comment = "LocalServerMode", commitHash = "" });
+			isLocalServerMode = true;
 		}
 
 		/// <summary>
@@ -151,12 +160,13 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void EnableSimulationMode()
 		{
-			SetPatchServerURL("SimulationMode");
-			Debug.LogFormat("{0}シミュレーションモードに設定", kLog);
+			patchServerURL = "SimulationMode/";
+			Debug.LogWarningFormat("{0}シミュレーションモードに設定", kLog);
 			history = new PatchHistory();
 			SetPatch(new Patch(){ comment = "SimulationMode", commitHash = "" });
 
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
+			isSimulationMode = true;
 		}
 #endif
 
@@ -192,6 +202,8 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 
 			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, false);
+			isSimulationMode = false;
+			isLocalServerMode = false;
 #endif
 
 			if (!url.EndsWith("/"))
@@ -401,7 +413,7 @@ namespace Mobcast.Coffee.AssetSystem
 				// ハッシュ値が0の場合、マニフェストはキャッシュからロードされず、常にダウンロードされます.
 				// If the hash value is 0, the manifest will be not loaded from the cache and will be always downloaded.
 				Debug.LogFormat("{0}アセットバンドルマニフェストのロード(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
-				request = hash.isValid
+				request = hash.isValid || !ready
 					? UnityWebRequest.GetAssetBundle(url, hash, 0)
 					: UnityWebRequest.GetAssetBundle(url);
 			}
@@ -554,16 +566,14 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="newManifest">Asset bundle manifest.</param>
 		static void SetPatch(AssetBundleManifest newManifest)
 		{
-			Debug.LogFormat("{0}マニフェスト更新 : {1}", kLog, patch);
-			var oldManifest = AssetManager.manifest;
-			AssetManager.manifest = newManifest;
-
 			if (!newManifest)
 			{
-				Debug.LogErrorFormat("{0}マニフェスト更新　失敗", kLog);
+				Debug.LogErrorFormat("{0}マニフェスト更新　失敗 : {1}", kLog, patch);
 				return;
 			}
 
+			var oldManifest = AssetManager.manifest;
+			AssetManager.manifest = newManifest;
 			if (oldManifest)
 			{
 				var oldBundles = new HashSet<string>(oldManifest.GetAllAssetBundles());
@@ -572,15 +582,16 @@ namespace Mobcast.Coffee.AssetSystem
 				// 新規
 				var sb = new StringBuilder();
 				var array = newBundles.Except(oldBundles).ToArray();
-				sb.AppendFormat("[Added]: {0}\n", array.Length);
+				sb.AppendFormat("[Added] {0}\n", array.Length);
 				foreach (var bundleName in array)
-					sb.AppendLine("  > " + bundleName);
+					sb.AppendFormat("  > {0} ({1})\n", bundleName, newManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
 
 				// 削除
 				array = oldBundles.Except(newBundles).ToArray();
-				sb.AppendFormat("\n[Deleted]: {0}\n", array.Length);
+				sb.AppendFormat("\n[Deleted : キャッシュは削除されます] {0}\n", array.Length);
 				foreach (var bundleName in array)
-					sb.AppendLine("  > " + bundleName);
+					sb.AppendFormat("  > {0} ({1})\n", bundleName, oldManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
+			
 
 				// 更新
 				array = oldBundles
@@ -589,10 +600,27 @@ namespace Mobcast.Coffee.AssetSystem
 					.Where(x => x.oldHash != x.newHash)
 					.Select(x => string.Format("{0} ({1} -> {2})", x.name, x.oldHash.ToString().Substring(0, 4), x.newHash.ToString().Substring(0, 4)))
 					.ToArray();
-				sb.AppendFormat("\n[Updated]: {0}\n", array.Length);
+				sb.AppendFormat("\n[Updated : 古いキャッシュは削除されます] {0}\n", array.Length);
 				foreach (var bundleName in array)
 					sb.AppendLine("  > " + bundleName);
 
+#if UNITY_2017_2_OR_NEWER
+				// 削除
+				foreach (var name in oldBundles.Except(newBundles))
+				{
+					UnloadAssetBundleInternal(name);
+					Caching.ClearAllCachedVersions(name);
+					Debug.LogFormat("{0}キャッシュ削除 : {1}", kLog, name);
+				}
+
+				// 更新
+				foreach (var name in newBundles)
+				{
+					UnloadAssetBundleInternal(name);
+					Caching.ClearOtherCachedVersions(name, newManifest.GetAssetBundleHash(name));
+					Debug.LogFormat("{0}キャッシュ削除 : {1}", kLog, name);
+				}
+#else
 				foreach (var name in oldBundles.Where(newBundles.Contains))
 				{
 					var oldHash = oldManifest.GetAssetBundleHash(name);
@@ -601,15 +629,31 @@ namespace Mobcast.Coffee.AssetSystem
 					// The bundle has removed or changed. Need to delete cached bundle.
 					if (oldHash != newHash)
 					{
-						ClearCachedAssetBundle(name, oldHash);
+						UnloadAssetBundleInternal(name);
+						if (Caching.IsVersionCached(name, oldHash))
+						{
+							Debug.LogFormat("{0}キャッシュ削除 : {1}({2})", kLog, name, oldHash.ToString().Substring(0, 4));
+							var request = UnityWebRequest.GetAssetBundle(name, oldHash, uint.MaxValue);
+							request.Send();
+							request.Abort();
+						}
 					}
 				}
+#endif
+				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
+			}
+			else
+			{
+				var newBundles = newManifest.GetAllAssetBundles();
 
-				Debug.LogFormat("{0}マニフェスト更新　ギャップチェック\n{1}", kLog, sb);
-
+				// 新規
+				var sb = new StringBuilder();
+				sb.AppendFormat("[Added] {0}\n", newBundles.Length);
+				foreach (var bundleName in newBundles)
+					sb.AppendFormat("  > {0} ({1})\n", bundleName, newManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
+				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
 			}
 			instance.leatestPatch = patch;
-			Debug.LogFormat("{0}マニフェスト更新　成功 : {1}", kLog, patch);
 		}
 
 		/// <summary>
@@ -647,30 +691,11 @@ namespace Mobcast.Coffee.AssetSystem
 					}
 					catch (Exception e)
 					{
+						Debug.LogException(e);
 						Debug.LogErrorFormat("{0}パッチリストの更新　失敗 : {1}", kLog, e.Message);
 					}
-
-//					patch = history.leatestPatch;
 					onComplete(history);
 				});
-		}
-
-
-		/// <summary>
-		/// Delete cached asset bundle.
-		/// </summary>
-		/// <param name="assetBundleName">AssetBundle name.</param>
-		/// <param name="hash">hash.</param>
-		static void ClearCachedAssetBundle(string assetBundleName, Hash128 hash)
-		{
-			UnloadAssetBundleInternal(assetBundleName);
-			if (Caching.IsVersionCached(assetBundleName, hash))
-			{
-				Debug.LogFormat("{0}アセットバンドルの削除 : {1}({2})", kLog, assetBundleName, hash.ToString().Substring(0, 4));
-				var request = UnityWebRequest.GetAssetBundle(assetBundleName, hash, uint.MaxValue);
-				request.Send();
-				request.Abort();
-			}
 		}
 
 		/// <summary>
@@ -678,7 +703,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		static public void ClearCachedAssetBundleAll()
 		{
-			Debug.LogFormat("{0}アセットバンドルをすべて削除", kLog);
+			Debug.LogFormat("{0}アセットバンドルキャッシュをすべて削除", kLog);
 
 #if UNITY_2017_1_OR_NEWER
 			Caching.ClearCache();
@@ -691,7 +716,19 @@ namespace Mobcast.Coffee.AssetSystem
 			
 			foreach (var bundleName in manifest.GetAllAssetBundles())
 			{
-				ClearCachedAssetBundle(bundleName, manifest.GetAssetBundleHash(bundleName));
+				var hash = manifest.GetAssetBundleHash(bundleName);
+				UnloadAssetBundleInternal(bundleName);
+				if (Caching.IsVersionCached(bundleName, hash))
+				{
+					Debug.LogFormat("{0}キャッシュ削除 : {1}({2})", kLog, bundleName, hash.ToString().Substring(0, 4));
+#if UNITY_2017_2_OR_NEWER
+					Caching.ClearAllCachedVersions(bundleName);
+#else
+					var request = UnityWebRequest.GetAssetBundle(bundleName, hash, uint.MaxValue);
+						request.Send();
+						request.Abort();
+#endif
+				}
 			}
 		}
 
@@ -750,13 +787,12 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		static void ClearOperationsAll()
 		{
-//			m_DownloadingErrors.Clear();
 			m_InProgressOperations.ForEach(op => op.OnCancel());
 			m_InProgressOperations.Clear();
 		}
 
 		/// <summary>
-		/// Clears the operations.
+		/// Clear all.
 		/// </summary>
 		public static void ClearAll()
 		{
