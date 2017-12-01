@@ -12,11 +12,11 @@ public class Test : MonoBehaviour
 	[Header("概要")]
 	public Text textSummary;
 
-	[Header("サーバー")]
-	public Toggle toggleServerLocal;
-	public Toggle toggleServerSimulation;
-	public Toggle toggleServerCloud;
-	public Toggle toggleServerStreamingAssets;
+//	[Header("サーバー")]
+//	public Toggle toggleServerLocal;
+//	public Toggle toggleServerSimulation;
+//	public Toggle toggleServerCloud;
+//	public Toggle toggleServerStreamingAssets;
 
 	[Header("パッチ")]
 	public GameObject prefabPatch;
@@ -34,25 +34,17 @@ public class Test : MonoBehaviour
 
 	IEnumerator Start()
 	{
-		prefabPatch.SetActive(false);
+//		prefabPatch.SetActive(false);
 
-		toggleServerCloud.isOn = true;
-
-		toggleServerLocal.gameObject.SetActive(Application.isEditor);
-		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
+//		toggleServerCloud.isOn = true;
+//
+//		toggleServerLocal.gameObject.SetActive(Application.isEditor);
+//		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
 
 		yield return new WaitUntil(()=>AssetManager.ready);
+		textCurrentPatch.text = AssetManager.patch.ToString();
 
-#if UNITY_EDITOR
-		if (AssetManager.isLocalServerMode)
-			toggleServerLocal.isOn = true;
-		else if (AssetManager.isSimulationMode)
-			toggleServerSimulation.isOn = true;
-		else
-#endif
-		{
-			OnClick_SelectServer();
-		}
+		OnClick_UpdatePatchList();
 
 		InvokeRepeating("UpdateSummary", 0, 1);
 	}
@@ -63,34 +55,6 @@ public class Test : MonoBehaviour
 		goLoading.SetActive(AssetManager.m_InProgressOperations.Any(op => op is AssetLoadOperation));
 		goBusy.SetActive(AssetManager.m_InProgressOperations.Any());
 	}
-
-	public void OnClick_SelectServer()
-	{
-		AssetManager.ClearRuntimeCacheAll();
-		#if UNITY_EDITOR
-		if (toggleServerLocal.isOn)
-		{
-			AssetManager.EnableLocalServerMode();
-		}
-		if (toggleServerSimulation.isOn)
-		{
-			AssetManager.EnableSimulationMode();
-		}
-		#endif
-		if (toggleServerCloud.isOn)
-		{
-			AssetManager.SetPatchServerURL(CloudServerURL);
-		}
-		if (toggleServerStreamingAssets.isOn)
-		{
-			AssetManager.SetPatchServerURLToStreamingAssets();
-		}
-		textCurrentPatch.text = AssetManager.patch.ToString();
-
-		//パッチリストの更新.
-		OnClick_UpdatePatchList();
-	}
-
 
 	void UpdateSummary()
 	{
@@ -104,7 +68,7 @@ public class Test : MonoBehaviour
 	public void OnClick_UpdatePatchList()
 	{
 		sliderProgress.value = 0;
-
+		/*
 		if (toggleServerCloud.isOn)
 		{
 			var patchParent = prefabPatch.transform.parent;
@@ -134,6 +98,7 @@ public class Test : MonoBehaviour
 			AssetManager.SetPatch(AssetManager.patch);
 			textCurrentPatch.text = AssetManager.patch.ToString();
 		}
+		*/
 	}
 
 
