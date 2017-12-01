@@ -499,7 +499,8 @@ namespace Mobcast.Coffee.AssetSystem
 			string operationId = AssetLoadOperation.GetId(assetBundleName, assetName, type);
 			
 			// Operation has not been cached. Need load the assetbundle.
-			if (!string.IsNullOrEmpty(assetBundleName) && !m_RuntimeCache.ContainsKey(operationId))
+			bool hasRuntimeCache = m_RuntimeCache.ContainsKey(operationId) && m_RuntimeCache[operationId];
+			if (!string.IsNullOrEmpty(assetBundleName) && !hasRuntimeCache)
 				LoadAssetBundle(assetBundleName, type == typeof(AssetBundleManifest));
 
 			// Search same operation in progress to merge load complete callbacks.
@@ -520,10 +521,11 @@ namespace Mobcast.Coffee.AssetSystem
 				operation = new AssetLoadOperation(assetBundleName, assetName, type);
 				operation.onComplete += () =>
 				{
-					if (instance.ValidRuntimeCache(operationId, type))
+					var obj = operation.GetAsset<Object>();
+					if (obj && instance.ValidRuntimeCache(operationId, type))
 					{
 						Debug.LogFormat("{0}ランタイムキャッシュに追加: {1}", kLog, operationId);
-						AssetManager.m_RuntimeCache[operationId] = operation.GetAsset<Object>();
+						AssetManager.m_RuntimeCache[operationId] = obj;
 					}
 					else
 					{

@@ -183,7 +183,12 @@ namespace Mobcast.Coffee.AssetSystem
 
 			// ランタイムキャッシュに存在すれば、そのまま利用
 			if (AssetManager.m_RuntimeCache.TryGetValue(id, out m_Object))
-				return;
+			{
+				if (m_Object)
+					return;
+				else
+					AssetManager.m_RuntimeCache.Remove(id);
+			}
 
 			AssetManager.AddDepend(m_AssetBundleName, id);
 
