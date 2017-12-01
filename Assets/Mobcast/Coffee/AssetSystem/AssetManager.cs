@@ -10,7 +10,6 @@ using System.Text.RegularExpressions;
 
 namespace Mobcast.Coffee.AssetSystem
 {
-
 	public class AssetManager : MonoSingleton<AssetManager>
 	{
 		#if UNITY_EDITOR
@@ -65,11 +64,8 @@ namespace Mobcast.Coffee.AssetSystem
 		public static bool ready { get; protected set; }
 
 		public static Patch patch { get; private set; }
-		public Patch leatestPatch
-		{
-			get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_Patch", "{}")); }
-			set { PlayerPrefs.SetString("AssetManager_Patch", JsonUtility.ToJson(value)); }
-		}
+
+		public Patch leatestPatch { get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_Patch", "{}")); } set { PlayerPrefs.SetString("AssetManager_Patch", JsonUtility.ToJson(value)); } }
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
@@ -261,7 +257,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// Preloads the asset bundle.
 		/// </summary>
 		/// <returns>The asset bundle.</returns>
-		public static BundlePreLoadOperation PreDownload(Func<string,bool> predicate, Action onComplete)
+		public static BundlePreLoadOperation PreDownload(Func<string, bool> predicate, Action onComplete)
 		{
 #if UNITY_EDITOR
 			if (isSimulationMode)
@@ -447,7 +443,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <summary>
 		/// Starts a load operation for an asset from Resources.
 		/// </summary>
-		static public AssetLoadOperation LoadAssetAsync<T>(string assetName, System.Action<T> onLoad = null) where T:UnityEngine.Object
+		static public AssetLoadOperation LoadAssetAsync<T>(string assetName, System.Action<T> onLoad = null) where T : UnityEngine.Object
 		{
 			if (assetName.StartsWith("ab://"))
 			{
@@ -479,7 +475,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <summary>
 		/// Starts a load operation for an asset from the given asset bundle.
 		/// </summary>
-		static public AssetLoadOperation LoadAssetAsync<T>(string assetBundleName, string assetName, System.Action<T> onLoad = null) where T:UnityEngine.Object
+		static public AssetLoadOperation LoadAssetAsync<T>(string assetBundleName, string assetName, System.Action<T> onLoad = null) where T : UnityEngine.Object
 		{
 			return onLoad != null
 				? LoadAssetAsync(assetBundleName, assetName, typeof(T), obj => onLoad(obj as T))
@@ -558,19 +554,14 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="newManifest">Asset bundle manifest.</param>
 		static void SetPatch(AssetBundleManifest newManifest)
 		{
-		Debug.Log("hogehoge!!!");
-
 			if (!newManifest)
 			{
 				Debug.LogErrorFormat("{0}マニフェスト更新　失敗 : {1}", kLog, patch);
 				return;
 			}
-		Debug.Log("hogehoge!!!");
 
 			var oldManifest = AssetManager.manifest;
 			AssetManager.manifest = newManifest;
-
-		Debug.Log("hogehoge!!!");
 
 			if (oldManifest)
 			{
@@ -727,8 +718,8 @@ namespace Mobcast.Coffee.AssetSystem
 					Caching.ClearAllCachedVersions(bundleName);
 #else
 					var request = UnityWebRequest.GetAssetBundle(bundleName, hash, uint.MaxValue);
-						request.Send();
-						request.Abort();
+					request.Send();
+					request.Abort();
 #endif
 				}
 			}

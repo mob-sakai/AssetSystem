@@ -488,7 +488,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			AssetManager.AddDepend(m_AssetBundleName, id);
 
-			#if UNITY_EDITOR
+#if UNITY_EDITOR
 			// シミュレーションモード中. アセットバンドルはAssetDatabaseを利用してロード.
 			// Simulation mode (only in editor).
 			if (AssetManager.isSimulationMode)
@@ -515,7 +515,7 @@ namespace Mobcast.Coffee.AssetSystem
 				progress = 1f;
 				return;
 			}
-			#endif
+#endif
 
 			// アセットバンドルではない.
 			if (string.IsNullOrEmpty(m_AssetBundleName))
