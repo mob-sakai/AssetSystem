@@ -692,7 +692,11 @@ namespace Mobcast.Coffee.AssetSystem
 						Debug.LogException(e);
 						Debug.LogErrorFormat("{0}パッチリストの更新　失敗 : {1}", kLog, e.Message);
 					}
-					onComplete(history);
+
+					if (onComplete != null)
+					{
+						onComplete(history);
+					}
 				});
 		}
 
