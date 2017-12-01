@@ -32,13 +32,9 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public override string ToString()
 		{
-			string hash = (commitHash != null && 4 < commitHash.Length)
-				? commitHash.Substring(0, 4)
-				: commitHash;
-
 			return string.Format("{0:MM/dd hh:mm} {1} {2}",
 				DateTime.FromFileTime(deployTime).ToLocalTime(),
-				hash,
+				Hash128.Parse(commitHash ?? "").ToString().Substring(0, 4),
 				comment
 			);
 		}

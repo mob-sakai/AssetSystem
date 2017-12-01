@@ -7,7 +7,7 @@ using Mobcast.Coffee.AssetSystem;
 
 public class Test : MonoBehaviour
 {
-	const string CloudServerURL = "https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.lip.mobcast.io/";
+	const string CloudServerURL = "https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.lip.mobcast.io/__AssetSystemDemo/";
 
 	[Header("概要")]
 	public LayoutGroup layoutGroup;
@@ -65,7 +65,7 @@ public class Test : MonoBehaviour
 	public void OnClick_UpdatePatchList()
 	{
 		sliderProgress.value = 0;
-		AssetManager.SetPatchLatest(CloudServerURL + "__AssetSystemDemo/deploy/history.json");
+		AssetManager.SetPatchLatest(CloudServerURL + "deploy/history.json");
 	}
 
 	/// <summary>

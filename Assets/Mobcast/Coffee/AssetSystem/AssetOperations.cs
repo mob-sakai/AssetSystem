@@ -26,6 +26,8 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <summary>Operation identifier.</summary>
 		public string id { get; protected set; }
 
+		public bool deferred { get; set; }
+
 		/// <summary>Error message.</summary>
 		public string error { get; protected set; }
 

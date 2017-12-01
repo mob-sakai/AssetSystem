@@ -75,6 +75,8 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static PatchHistory history = new PatchHistory();
 
+		public static readonly Hash128 MAX_HASH = new Hash128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
+
 #if UNITY_EDITOR
 		public static bool isLocalServerMode { get { return EditorOption.instance.mode == EditorOption.Mode.LocalServer; } }
 		public static bool isSimulationMode { get { return EditorOption.instance.mode == EditorOption.Mode.Simulation; } }
@@ -104,7 +106,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			var depend = Dump(m_Depended.Select(x => x.Key + " = " + Dump(x.Value)), "\n");
 
-			return string.Format("{0}\nパッチサーバーURL : {6}\n現在のパッチ : {7}\nディスク使用量 : {1}\nランタイムキャッシュ : {2}\nロード済みアセットバンドル : {3}\nダウンロード済みアセットバンドル{4}/{5}\n依存関係{8}",
+			return string.Format("{0}\nパッチサーバーURL : {6}\n現在のパッチ : {7}\nディスク使用量 : {1}\nランタイムキャッシュ : {2}\nロード済みアセットバンドル : {3}\nダウンロード済みアセットバンドル{4}/{5}\nアセットバンドル依存関係{8}",
 				kLog,
 				Caching.spaceOccupied,
 				AssetManager.m_RuntimeCache.Count,
@@ -117,8 +119,14 @@ namespace Mobcast.Coffee.AssetSystem
 			);
 		}
 
+
 		protected virtual IEnumerator Start()
 		{
+			Application.logMessageReceived += (condition, stackTrace, type) =>
+			{
+				if (type != LogType.Log && type != LogType.Warning && condition.StartsWith(kLog))
+					errorLog.AppendLine(condition);
+			};
 			ready = false;
 			yield return new WaitUntil(() => Caching.ready);
 
@@ -128,23 +136,22 @@ namespace Mobcast.Coffee.AssetSystem
 			patch = storedPatch;
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
-				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元します", kLog, patch);
+				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元します.", kLog, patch);
 				yield return StartCoroutine(SetPatch(patch));
 				Debug.LogFormat("{0}パッチ [{1}] を復元しました", kLog, patch);
 			}
 			else
 			{
-				Debug.LogWarningFormat("{0}マニフェストがキャッシュにありません. 最後に利用したパッチ [{1}] は復元されません", kLog, patch);
+				Debug.LogWarningFormat("{0}マニフェストがキャッシュにありません.\n最後に利用したパッチ [{1}] は復元されず、アセットバンドルキャッシュはクリアされます.", kLog, patch);
 				ClearCachedAssetBundleAll();
-				Debug.LogWarningFormat("{0}アセットバンドルキャッシュはクリアされました", kLog);
 			}
 			patchRestored = true;
 
 			if (isStreamingAssetsMode)
 			{
 				patchServerURL = streamingAssetsAssetBundlePath;
-				Debug.LogWarningFormat("{0}StreamingAssetsモードに設定します : {1}", kLog, patchServerURL);
-				yield return SetPatch(new Patch() { comment = "StreamingAssetsMode", commitHash = "" });
+				Debug.LogWarningFormat("{0}StreamingAssetsモードに設定します\n{1}", kLog, patchServerURL);
+				yield return SetPatch(new Patch() { comment = "StreamingAssetsMode", commitHash = MAX_HASH.ToString() });
 			}
 #if UNITY_EDITOR
 			else if (isSimulationMode)
@@ -155,8 +162,8 @@ namespace Mobcast.Coffee.AssetSystem
 			else if (isLocalServerMode)
 			{
 				patchServerURL = "http://localhost:7888/";
-				Debug.LogWarningFormat("{0}ローカルサーバーモードに設定します : {1}", kLog, patchServerURL);
-				yield return SetPatch(new Patch() { comment = "LocalServerMode", commitHash = "" });
+				Debug.LogWarningFormat("{0}ローカルサーバーモードに設定します\n{1}", kLog, patchServerURL);
+				yield return SetPatch(new Patch() { comment = "LocalServerMode", commitHash = MAX_HASH.ToString() });
 			}
 #endif
 
@@ -186,7 +193,12 @@ namespace Mobcast.Coffee.AssetSystem
 			for (int i = 0; i < m_InProgressOperations.Count;)
 			{
 				var operation = m_InProgressOperations[i];
-				if (operation.Update())
+				if (operation.deferred && i == 0)
+				{
+					Debug.LogFormat("{0}オペレーション遅延解除 : {1}", kLog, operation.id);
+					operation.deferred = false;
+				}
+				if (operation.deferred || operation.Update())
 				{
 					i++;
 				}
@@ -255,11 +267,11 @@ namespace Mobcast.Coffee.AssetSystem
 				return null;
 			}
 
-			IEnumerable<string> bundleNams = predicate != null
+			IEnumerable<string> bundleNames = predicate != null
 				? manifest.GetAllAssetBundles().Where(predicate)
 				: manifest.GetAllAssetBundles();
 
-			foreach (var name in bundleNams)
+			foreach (var name in bundleNames)
 			{
 				var hash = manifest.GetAssetBundleHash(name);
 				bool cached = Caching.IsVersionCached(name, hash);
@@ -269,7 +281,9 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 			}
 
-			var operation = new BundlePreLoadOperation(m_InProgressOperations.OfType<BundleLoadOperation>().ToList());
+			var list = m_InProgressOperations.OfType<BundleLoadOperation>().ToList();
+			var operation = new BundlePreLoadOperation(list);
+			Debug.LogFormat("{0}事前ダウンロード　開始 : {1}件", kLog, list.Count);
 			if (onComplete != null)
 				operation.onComplete += onComplete;
 			m_InProgressOperations.Add(operation);
@@ -311,9 +325,9 @@ namespace Mobcast.Coffee.AssetSystem
 			// Already loaded.
 			AssetBundle bundle = null;
 			m_LoadedAssetBundles.TryGetValue(assetBundleName, out bundle);
-			Debug.LogFormat("{0}アセットバンドルロード : {1} (ロード済み:{2})", kLog, assetBundleName, bundle != null);
 			if (bundle != null)
 			{
+				Debug.LogFormat("{0}アセットバンドルロード 成功：{1} はロード済みです.", kLog, assetBundleName);
 				return new BundleLoadOperation(assetBundleName);
 			}
 			m_LoadedAssetBundles.Remove(assetBundleName);
@@ -346,7 +360,9 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 			}
 
+			Debug.LogFormat("{0}アセットバンドルロード　バンドルロードオペレーション {1} を作成", kLog, assetBundleName);
 			op = new BundleLoadOperation(assetBundleName, () => GetAssetBundleRequest(assetBundleName, isLoadingAssetBundleManifest));
+			op.deferred = isLoadingAssetBundleManifest;
 			m_InProgressOperations.Add(op);
 			return op;
 		}
@@ -358,7 +374,7 @@ namespace Mobcast.Coffee.AssetSystem
 			{
 				url = "file://" + Platform + "/" + assetBundleName;
 			}
-			else if (string.IsNullOrEmpty(patch.commitHash))
+			else if (string.IsNullOrEmpty(patch.commitHash) || isLocalServerMode || isStreamingAssetsMode)
 			{
 				url = patchServerURL + Platform + "/" + assetBundleName;
 			}
@@ -367,31 +383,26 @@ namespace Mobcast.Coffee.AssetSystem
 				url = patchServerURL + patch.commitHash + "/" + Platform + "/" + assetBundleName;
 			}
 
-#if UNITY_EDITOR
-			if (isLocalServerMode)
-			{
-				url = patchServerURL + Platform + "/" + assetBundleName;
-			}
-#endif
+			Hash128 hash = isLoadingAssetBundleManifest
+				? Hash128.Parse(patch.commitHash)
+				: manifest.GetAssetBundleHash(assetBundleName);
 
-			UnityWebRequest request = null;
-			if (isLoadingAssetBundleManifest)
-			{
-				var hash = Hash128.Parse(patch.commitHash);
-				// ハッシュ値が0の場合、マニフェストはキャッシュからロードされず、常にダウンロードされます.
-				// If the hash value is 0, the manifest will be not loaded from the cache and will be always downloaded.
-				Debug.LogFormat("{0}アセットバンドルマニフェスト ロードリクエスト生成(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
-				request = hash.isValid || !ready
-					? UnityWebRequest.GetAssetBundle(url, hash, 0)
-					: UnityWebRequest.GetAssetBundle(url);
-			}
-			else
-			{
-				var hash = manifest.GetAssetBundleHash(assetBundleName);
-				Debug.LogFormat("{0}アセットバンドル ロードリクエスト生成(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
-				request = UnityWebRequest.GetAssetBundle(url, hash, 0);
-			}
-			return request;
+			bool forceDownload = (!hash.isValid || hash == MAX_HASH) && patchRestored;
+
+			Debug.LogFormat("{0}アセットバンドル {1} のロードリクエスト生成(Hash:{2}, DL済み:{3}, 強制DL:{4})\n{5}"
+				, kLog
+				, assetBundleName
+				, hash.ToString().Substring(0, 4)
+				, Caching.IsVersionCached(assetBundleName, hash)
+				, forceDownload
+				, url
+			);
+
+			// パッチリストア済みかつハッシュ値が0または最大の場合、キャッシュからロードされず、常にダウンロードされます.
+			// If the hash value is 0, the manifest will be not loaded from the cache and will be always downloaded.
+			return forceDownload
+				? UnityWebRequest.GetAssetBundle(url)
+				: UnityWebRequest.GetAssetBundle(url, hash, 0);
 		}
 
 		/// <summary>
@@ -502,12 +513,12 @@ namespace Mobcast.Coffee.AssetSystem
 					var obj = operation.GetAsset<Object>();
 					if (obj && instance.ValidRuntimeCache(operationId, type))
 					{
-						Debug.LogFormat("{0}ランタイムキャッシュに追加: {1}", kLog, operationId);
+						Debug.LogFormat("{0}ランタイムキャッシュに追加\n{1}", kLog, operationId);
 						AssetManager.m_RuntimeCache[operationId] = obj;
 					}
 					else
 					{
-						Debug.LogWarningFormat("{0}ランタイムキャッシュから除外: {1}", kLog, operationId);
+						Debug.LogWarningFormat("{0}ランタイムキャッシュから除外\n{1}", kLog, operationId);
 					}
 				};
 				m_InProgressOperations.Add(operation);
@@ -519,7 +530,7 @@ namespace Mobcast.Coffee.AssetSystem
 				operation.onComplete += () =>
 				{
 					var obj = operation.GetAsset<Object>();
-					Debug.LogFormat("{0}ロード完了 : {1}(成功:{2})", kLog, operationId, obj != null);
+					Debug.LogFormat("{0}ロード完了(成功:{2})\n{1}", kLog, operationId, obj != null);
 					onLoad(obj);
 				};
 			}
@@ -534,7 +545,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// Returns the manifest asset bundle downolad operation object.
 		/// </summary>
 		/// <param name="newManifest">Asset bundle manifest.</param>
-		static void SetPatch(AssetBundleManifest newManifest)
+		static void SetManifest(AssetBundleManifest newManifest)
 		{
 			if (!newManifest)
 			{
@@ -611,7 +622,7 @@ namespace Mobcast.Coffee.AssetSystem
 					}
 				}
 #endif
-				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
+				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n変更は以下の通りです：\n{1}", kLog, sb, patch);
 			}
 			else
 			{
@@ -622,7 +633,7 @@ namespace Mobcast.Coffee.AssetSystem
 				sb.AppendFormat("[Added] {0}\n", newBundles.Length);
 				foreach (var bundleName in newBundles)
 					sb.AppendFormat("  > {0} ({1})\n", bundleName, newManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
-				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
+				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n変更は以下の通りです：\n{1}", kLog, sb, patch);
 			}
 			instance.storedPatch = patch;
 		}
@@ -647,6 +658,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// <param name="onComplete">callback.</param>
 		static public AssetLoadOperation SetPatch()
 		{
+			Debug.LogFormat("{0}パッチを更新します : {1}", kLog, patch);
 			ClearRuntimeCacheAll();
 			ClearOperationsAll();
 			UnloadAssetbundlesAll();
@@ -656,13 +668,28 @@ namespace Mobcast.Coffee.AssetSystem
 				return null;
 #endif
 
-			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetPatch);
+			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetManifest);
 		}
 
 		static public AssetLoadOperation SetPatchLatest(string url)
 		{
-			UpdatePatchList(url);
-			return SetPatch();
+			if (isStreamingAssetsMode || isSimulationMode || isLocalServerMode)
+			{
+				Debug.LogWarningFormat("{0}現在のモードでは、最新パッチが存在しません", kLog);
+				return null;
+			}
+			Debug.LogFormat("{0}最新のパッチに更新します : {1}", kLog, patch);
+			ClearRuntimeCacheAll();
+			ClearOperationsAll();
+			UnloadAssetbundlesAll();
+
+#if UNITY_EDITOR
+			if (isSimulationMode && ready)
+				return null;
+#endif
+
+			UpdatePatchList(url, his => patch = his.latestPatch);
+			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetManifest);
 		}
 
 		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchHistory> onComplete = null)
@@ -692,6 +719,7 @@ namespace Mobcast.Coffee.AssetSystem
 					{
 						onComplete(history);
 					}
+					Debug.LogFormat("{0}パッチリストの更新　完了(最新パッチ:{1})", kLog, history.latestPatch);
 				});
 		}
 
@@ -806,7 +834,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (string.IsNullOrEmpty(assetBundleName))
 				return;
 		
-			Debug.LogFormat("{0} 依存関係の追加 {1} <- {2}", kLog, assetBundleName, dependedId);
+			Debug.LogFormat("{0} アセットバンドル依存関係の追加\n{1} <- {2}", kLog, assetBundleName, dependedId);
 				
 			HashSet<string> depended;
 			if (!m_Depended.TryGetValue(assetBundleName, out depended))
@@ -831,7 +859,7 @@ namespace Mobcast.Coffee.AssetSystem
 			if (string.IsNullOrEmpty(assetBundleName))
 				return;
 				
-			Debug.LogFormat("{0} 依存関係の解除 {1} <- {2}", kLog, assetBundleName, dependedId);
+			Debug.LogFormat("{0} アセットバンドル依存関係の解除\n{1} <- {2}", kLog, assetBundleName, dependedId);
 			HashSet<string> depended;
 			if (m_Depended.TryGetValue(assetBundleName, out depended))
 			{
@@ -855,7 +883,7 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			else
 			{
-				Debug.LogFormat("{0} 依存関係の更新: {1} のアンロードを許可します. 次のUpdate時にアンロードされます.", kLog, assetBundleName);
+				Debug.LogFormat("{0} アセットバンドル依存関係の更新\n{1} のアンロードを許可します. 次のUpdate時にアンロードされます.", kLog, assetBundleName);
 				m_Unloadable.Add(assetBundleName);
 				m_Depended.Remove(assetBundleName);
 			}
