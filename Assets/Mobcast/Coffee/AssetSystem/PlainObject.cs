@@ -59,10 +59,10 @@ namespace Mobcast.Coffee.AssetSystem
 				.OrderByDescending(x => x.deployTime)
 				.ToArray();
 			
-			leatestPatch = patchList.FirstOrDefault();
+			latestPatch = patchList.FirstOrDefault();
 		}
 
 		public Patch[] patchList = new Patch[0];
-		[System.NonSerialized] public Patch leatestPatch;
+		[System.NonSerialized] public Patch latestPatch;
 	}
 }

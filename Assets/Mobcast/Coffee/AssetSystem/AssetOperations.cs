@@ -74,6 +74,7 @@ namespace Mobcast.Coffee.AssetSystem
 		public AssetBundle assetBundle { get; protected set; }
 
 		UnityWebRequest m_request;
+		Func<UnityWebRequest> m_RequestDelegate;
 
 
 		public static string GetId(string bundleName)
@@ -86,11 +87,10 @@ namespace Mobcast.Coffee.AssetSystem
 			id = GetId(bundleName);
 		}
 
-		public BundleLoadOperation(string bundleName, UnityWebRequest request)
+		public BundleLoadOperation(string bundleName, Func<UnityWebRequest> getAssetBundleRequest)
 		{
 			id = GetId(bundleName);
-			m_request = request;
-			m_request.Send();
+			m_RequestDelegate = getAssetBundleRequest;
 		}
 
 		public override bool keepWaiting
@@ -100,6 +100,12 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public override bool Update()
 		{
+			if (m_request == null && m_RequestDelegate != null)
+			{
+				m_request = m_RequestDelegate();
+				m_request.Send();
+				m_RequestDelegate = null;
+			}
 			progress = m_request != null ? m_request.downloadProgress : 1;
 
 			return base.Update();

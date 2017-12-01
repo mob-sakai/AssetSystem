@@ -65,7 +65,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static Patch patch { get; private set; }
 
-		public Patch leatestPatch { get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_Patch", "{}")); } set { PlayerPrefs.SetString("AssetManager_Patch", JsonUtility.ToJson(value)); } }
+		public Patch latestPatch { get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_LatestPatch", "{}")); } set { PlayerPrefs.SetString("AssetManager_LatestPatch", JsonUtility.ToJson(value)); } }
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
@@ -132,7 +132,7 @@ namespace Mobcast.Coffee.AssetSystem
 
 			// 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチ(=マニフェスト)を復元.
 			// Is the last used patch cached?
-			patch = leatestPatch;
+			patch = latestPatch;
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
 				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元します", kLog, patch);
@@ -341,9 +341,10 @@ namespace Mobcast.Coffee.AssetSystem
 
 			// Search same operation in progress to merge load complete callbacks.
 			// Check if the assetBundle has already been processed.
+			BundleLoadOperation op;
 			foreach (var progressOperation in m_InProgressOperations)
 			{
-				var op = progressOperation as BundleLoadOperation;
+				op = progressOperation as BundleLoadOperation;
 				if (op != null && op.id == operationId)
 				{
 					return op;
@@ -364,12 +365,13 @@ namespace Mobcast.Coffee.AssetSystem
 					LoadAssetBundle(dependency, false);
 				}
 			}
-			return LoadAssetBundleInternal(assetBundleName, isLoadingAssetBundleManifest);
+
+			op = new BundleLoadOperation(assetBundleName, () => GetAssetBundleRequest(assetBundleName, isLoadingAssetBundleManifest));
+			m_InProgressOperations.Add(op);
+			return op;
 		}
 
-
-		// Sets up download operation for the given asset bundle if it's not downloaded already.
-		static protected BundleLoadOperation LoadAssetBundleInternal(string assetBundleName, bool isLoadingAssetBundleManifest)
+		protected static UnityWebRequest GetAssetBundleRequest(string assetBundleName, bool isLoadingAssetBundleManifest)
 		{
 			string url;
 			if (string.IsNullOrEmpty(patchServerURL))
@@ -405,11 +407,11 @@ namespace Mobcast.Coffee.AssetSystem
 			}
 			else
 			{
-				request = UnityWebRequest.GetAssetBundle(url, manifest.GetAssetBundleHash(assetBundleName), 0);
+				var hash = manifest.GetAssetBundleHash(assetBundleName);
+				Debug.LogFormat("{0}アセットバンドルのロード(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
+				request = UnityWebRequest.GetAssetBundle(url, hash, 0);
 			}
-			var op = new BundleLoadOperation(assetBundleName, request);
-			m_InProgressOperations.Add(op);
-			return op;
+			return request;
 		}
 
 		/// <summary>
@@ -642,7 +644,7 @@ namespace Mobcast.Coffee.AssetSystem
 					sb.AppendFormat("  > {0} ({1})\n", bundleName, newManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
 				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
 			}
-			instance.leatestPatch = patch;
+			instance.latestPatch = patch;
 		}
 
 		/// <summary>
@@ -654,6 +656,17 @@ namespace Mobcast.Coffee.AssetSystem
 		static public AssetLoadOperation SetPatch(Patch patchHash)
 		{
 			patch = patchHash;
+			return SetPatch();
+		}
+
+		/// <summary>
+		/// Starts download of manifest asset bundle.
+		/// Returns the manifest asset bundle downolad operation object.
+		/// </summary>
+		/// <param name="hash">Hash for manifest.</param>
+		/// <param name="onComplete">callback.</param>
+		static public AssetLoadOperation SetPatch()
+		{
 			ClearRuntimeCacheAll();
 			ClearOperationsAll();
 			UnloadAssetbundlesAll();
@@ -666,8 +679,22 @@ namespace Mobcast.Coffee.AssetSystem
 			return LoadAssetAsync<AssetBundleManifest>(Platform, "assetbundlemanifest", SetPatch);
 		}
 
+		static public AssetLoadOperation SetPatchLatest(string url)
+		{
+			UpdatePatchList(url);
+			return SetPatch();
+		}
+
 		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchHistory> onComplete = null)
 		{
+#if UNITY_EDITOR
+			if (isSimulationMode || isLocalServerMode)
+			{
+				Debug.LogFormat("{0}シミュレーションモード、ローカルサーバーモード、ストリーミングアセットモードでは、パッチリストが存在しません", kLog);
+				return null;
+			}
+#endif
+
 			Debug.LogFormat("{0}パッチリストの更新　開始 : {1}", kLog, url);
 
 			return LoadAssetAsync<PlainObject>(url, txt =>
