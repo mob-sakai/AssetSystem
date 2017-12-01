@@ -602,7 +602,7 @@ namespace Mobcast.Coffee.AssetSystem
 				foreach (var bundleName in array)
 					sb.AppendLine("  > " + bundleName);
 
-#if UNITY_2017_2_OR_NEWER
+#if UNITY_2017_1_OR_NEWER
 				// 削除
 				foreach (var name in oldBundles.Except(newBundles))
 				{
@@ -719,7 +719,7 @@ namespace Mobcast.Coffee.AssetSystem
 				if (Caching.IsVersionCached(bundleName, hash))
 				{
 					Debug.LogFormat("{0}キャッシュ削除 : {1}({2})", kLog, bundleName, hash.ToString().Substring(0, 4));
-#if UNITY_2017_2_OR_NEWER
+#if UNITY_2017_1_OR_NEWER
 					Caching.ClearAllCachedVersions(bundleName);
 #else
 					var request = UnityWebRequest.GetAssetBundle(bundleName, hash, uint.MaxValue);
