@@ -9,52 +9,62 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using System;
+using EditorOption = Mobcast.Coffee.AssetSystem.EditorOption;
 
 namespace Mobcast.Coffee.AssetSystem
 {
 	/// <summary>
 	/// AssetManager Menu.
 	/// </summary>
-	class AssetManagerMenu
+	static class AssetManagerMenu
 	{
+		const string MenuText_Root = "Coffee/AsssetSystem";
+		const string MenuText_SimulationMode = MenuText_Root + "/AssetBundle Mode/Simulation (Editor)";
+		const string MenuText_LocalServerMode = MenuText_Root + "/AssetBundle Mode/In Local Server (Editor)";
+		const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
+		const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
+
+		static EditorOption editorOption { get { return EditorOption.instance; } }
+
 		/// <summary>
 		/// Raises the initialize on load method event.
 		/// </summary>
 		[InitializeOnLoadMethod]
 		static void OnInitializeOnLoadMethod()
 		{
-			EditorApplication.delayCall += () => Valid();
 		}
 
-		[MenuItem(AssetManager.MenuText_SimulationMode)]
+		[MenuItem(MenuText_SimulationMode)]
 		static void ToggleSimulationMode()
 		{
 			if (Application.isPlaying)
 				return;
 
-			AssetManager.EditorOption.isSimulationMode = !AssetManager.EditorOption.isSimulationMode;
-
+			editorOption.mode = (editorOption.mode == EditorOption.Mode.Simulation) ? EditorOption.Mode.None : EditorOption.Mode.Simulation;
 			if (IsLocalServerRunning())
 				KillRunningAssetBundleServer();
 
 			Valid();
 		}
 
-		[MenuItem(AssetManager.MenuText_LocalServerMode, true)]
+		[MenuItem(MenuText_LocalServerMode, true)]
 		static bool Valid()
 		{
-			Menu.SetChecked(AssetManager.MenuText_SimulationMode, AssetManager.EditorOption.isSimulationMode);
-			Menu.SetChecked(AssetManager.MenuText_LocalServerMode, IsLocalServerRunning());
+			Menu.SetChecked(MenuText_SimulationMode, editorOption.mode == EditorOption.Mode.Simulation);
+			Menu.SetChecked(MenuText_LocalServerMode, editorOption.mode == EditorOption.Mode.LocalServer);
 			return true;
 		}
 
-		[MenuItem(AssetManager.MenuText_LocalServerMode)]
+		[MenuItem(MenuText_LocalServerMode)]
 		static void ToggleLocalServerMode()
 		{
+			if (Application.isPlaying)
+				return;
+			
 			BuildAssetBundle();
 
-			AssetManager.EditorOption.isSimulationMode = !IsLocalServerRunning();
-			if (AssetManager.EditorOption.isSimulationMode)
+			editorOption.mode = (editorOption.mode == EditorOption.Mode.LocalServer) ? EditorOption.Mode.None : EditorOption.Mode.LocalServer;
+			if (editorOption.mode == EditorOption.Mode.LocalServer)
 				Run();
 			else
 				KillRunningAssetBundleServer();
@@ -62,7 +72,7 @@ namespace Mobcast.Coffee.AssetSystem
 			Valid();
 		}
 
-		[MenuItem(AssetManager.MenuText_BuildAssetBundle)]
+		[MenuItem(MenuText_BuildAssetBundle)]
 		static void BuildAssetBundle()
 		{
 			if (Application.isPlaying)
@@ -82,7 +92,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			try
 			{
-				return AssetManager.EditorOption.localServerProcessId != 0 && !Process.GetProcessById(AssetManager.EditorOption.localServerProcessId).HasExited;
+				return editorOption.localServerProcessId != 0 && !Process.GetProcessById(editorOption.localServerProcessId).HasExited;
 			}
 			catch
 			{
@@ -95,12 +105,12 @@ namespace Mobcast.Coffee.AssetSystem
 			// Kill the last time we ran
 			try
 			{
-				if (AssetManager.EditorOption.localServerProcessId == 0)
+				if (editorOption.localServerProcessId == 0)
 					return;
 
-				var lastProcess = Process.GetProcessById(AssetManager.EditorOption.localServerProcessId);
+				var lastProcess = Process.GetProcessById(editorOption.localServerProcessId);
 				lastProcess.Kill();
-				AssetManager.EditorOption.localServerProcessId = 0;
+				editorOption.localServerProcessId = 0;
 			}
 			catch
 			{
@@ -163,7 +173,7 @@ namespace Mobcast.Coffee.AssetSystem
 			else
 			{
 				//We seem to have launched, let's save the PID
-				AssetManager.EditorOption.localServerProcessId = launchProcess.Id;
+				editorOption.localServerProcessId = launchProcess.Id;
 
 				//Add process callback.
 				launchProcess.OutputDataReceived += (sender, e) => Log(UnityEngine.Debug.Log, e.Data);

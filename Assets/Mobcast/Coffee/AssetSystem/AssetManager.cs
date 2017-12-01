@@ -10,28 +10,23 @@ using System.Text.RegularExpressions;
 
 namespace Mobcast.Coffee.AssetSystem
 {
+#if UNITY_EDITOR
+	public class EditorOption : UnityEditor.ScriptableSingleton<EditorOption>
+	{
+		public enum Mode
+		{
+			None,
+			Simulation,
+			LocalServer,
+		}
+
+		public Mode mode = Mode.Simulation;
+		public int localServerProcessId = 0;
+	}
+#endif
+
 	public class AssetManager : MonoSingleton<AssetManager>
 	{
-		#if UNITY_EDITOR
-		public class EditorOption : UnityEditor.ScriptableSingleton<EditorOption>
-		{
-			public enum Mode
-			{
-				None,
-				Simulation,
-				LocalServer,
-			}
-
-			public Mode mode = Mode.Simulation;
-			public int m_LocalServerProcessId = 0;
-
-			public static bool isSimulationMode { get { return instance.mode == Mode.Simulation; } set { instance.mode = value ? Mode.Simulation : Mode.None; } }
-
-			public static bool isLocalServerMode { get { return instance.mode == Mode.LocalServer; } set { instance.mode = value ? Mode.LocalServer : Mode.None; } }
-
-			public static int localServerProcessId { get { return instance.m_LocalServerProcessId; } set { instance.m_LocalServerProcessId = value; } }
-		}
-		#endif
 
 		public const string kLog = "[AssetManager] ";
 
@@ -77,25 +72,14 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static PatchHistory history = new PatchHistory();
 
-
-		#if UNITY_EDITOR
-		public const string MenuText_Root = "Coffee/AsssetSystem";
-		public const string MenuText_SimulationMode = MenuText_Root + "/AssetBundle Mode/Simulation (Editor)";
-		public const string MenuText_LocalServerMode = MenuText_Root + "/AssetBundle Mode/In Local Server (Editor)";
-		public const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
-		public const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
-
-
-		#endif
-
 #if UNITY_EDITOR
-		public static bool isLocalServerMode { get { return EditorOption.isLocalServerMode; } }
+		public static bool isLocalServerMode { get { return EditorOption.instance.mode == EditorOption.Mode.LocalServer; } }
 #else
 		public static bool isLocalServerMode { get { return false; } }
 #endif
 
 #if UNITY_EDITOR
-		public static bool isSimulationMode { get { return EditorOption.isSimulationMode; } }
+		public static bool isSimulationMode { get { return EditorOption.instance.mode == EditorOption.Mode.Simulation; } }
 #else
 		public static bool isSimulationMode { get { return false; } }
 #endif
