@@ -165,6 +165,21 @@ AssetManager.Preload();
 
 ## Release Notes
 
+### ver.0.5.0:
+
+Feature: Deferred operation
+Feature: Set patch latest
+Fixed: progress of PreDownloadOperation will be minus.
+Fixed: In the simulation mode, an error may occur.
+Fixed: When there are null references in runtime cache, asset operation can not complete.
+Fixed: Support Unity 2017.1.x
+Fixed: An error occurs if you do not set the UpdatePatchList callback.
+Fixed: Demo scene
+Fixed: Editor settings
+Fixed: StreamingAssets mode
+
+
+
 ### ver.0.4.0:
 
 * ログの追加
