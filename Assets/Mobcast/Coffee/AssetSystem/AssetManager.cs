@@ -18,6 +18,7 @@ namespace Mobcast.Coffee.AssetSystem
 			None,
 			Simulation,
 			LocalServer,
+			StreamingAssets,
 		}
 
 		public Mode mode = Mode.Simulation;
@@ -58,9 +59,11 @@ namespace Mobcast.Coffee.AssetSystem
 
 		public static bool ready { get; protected set; }
 
+		static bool patchRestored { get; set; }
+
 		public static Patch patch { get; private set; }
 
-		public Patch latestPatch { get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_LatestPatch", "{}")); } set { PlayerPrefs.SetString("AssetManager_LatestPatch", JsonUtility.ToJson(value)); } }
+		public Patch storedPatch { get { return JsonUtility.FromJson<Patch>(PlayerPrefs.GetString("AssetManager_StoredPatch", "{}")); } set { PlayerPrefs.SetString("AssetManager_StoredPatch", JsonUtility.ToJson(value)); } }
 
 		public static Dictionary<string, AssetBundle> m_LoadedAssetBundles = new Dictionary<string, AssetBundle>();
 		public static List<AssetOperation> m_InProgressOperations = new List<AssetOperation>();
@@ -74,14 +77,18 @@ namespace Mobcast.Coffee.AssetSystem
 
 #if UNITY_EDITOR
 		public static bool isLocalServerMode { get { return EditorOption.instance.mode == EditorOption.Mode.LocalServer; } }
+		public static bool isSimulationMode { get { return EditorOption.instance.mode == EditorOption.Mode.Simulation; } }
+		public static bool isStreamingAssetsMode { get { return EditorOption.instance.mode == EditorOption.Mode.StreamingAssets; } }
 #else
 		public static bool isLocalServerMode { get { return false; } }
+		public static bool isSimulationMode { get { return false; } }
+		public static bool isStreamingAssetsMode { get; set; }
 #endif
 
-#if UNITY_EDITOR
-		public static bool isSimulationMode { get { return EditorOption.instance.mode == EditorOption.Mode.Simulation; } }
+#if UNITY_ANDROID && !UNITY_EDITOR
+		public static string streamingAssetsAssetBundlePath { get{ return System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles/"); } }
 #else
-		public static bool isSimulationMode { get { return false; } }
+		public static string streamingAssetsAssetBundlePath { get { return "file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles/"); } }
 #endif
 
 		static string Dump(IEnumerable<string> self, string sep = ", ")
@@ -112,11 +119,13 @@ namespace Mobcast.Coffee.AssetSystem
 
 		protected virtual IEnumerator Start()
 		{
+			ready = false;
 			yield return new WaitUntil(() => Caching.ready);
 
-			// 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチ(=マニフェスト)を復元.
+			// パッチリストア. 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチ(=マニフェスト)を復元.
 			// Is the last used patch cached?
-			patch = latestPatch;
+			patchRestored = false;
+			patch = storedPatch;
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
 				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元します", kLog, patch);
@@ -129,17 +138,24 @@ namespace Mobcast.Coffee.AssetSystem
 				ClearCachedAssetBundleAll();
 				Debug.LogWarningFormat("{0}アセットバンドルキャッシュはクリアされました", kLog);
 			}
+			patchRestored = true;
 
-#if UNITY_EDITOR
-			if(isSimulationMode)
+			if (isStreamingAssetsMode)
 			{
-				Debug.LogWarningFormat("{0}シミュレーションモードに設定します", kLog);
-				patchServerURL = "SimulationMode/";
+				patchServerURL = streamingAssetsAssetBundlePath;
+				Debug.LogWarningFormat("{0}StreamingAssetsモードに設定します : {1}", kLog, patchServerURL);
+				yield return SetPatch(new Patch() { comment = "StreamingAssetsMode", commitHash = "" });
 			}
-			else if(isLocalServerMode)
+#if UNITY_EDITOR
+			else if (isSimulationMode)
 			{
-				Debug.LogWarningFormat("{0}ローカルサーバーモードに設定します : {1}", kLog, patchServerURL);
+				patchServerURL = "SimulationMode/";
+				Debug.LogWarningFormat("{0}シミュレーションモードに設定します", kLog);
+			}
+			else if (isLocalServerMode)
+			{
 				patchServerURL = "http://localhost:7888/";
+				Debug.LogWarningFormat("{0}ローカルサーバーモードに設定します : {1}", kLog, patchServerURL);
 				yield return SetPatch(new Patch() { comment = "LocalServerMode", commitHash = "" });
 			}
 #endif
@@ -149,24 +165,6 @@ namespace Mobcast.Coffee.AssetSystem
 			yield break;
 		}
 
-
-		/// <summary>
-		/// StreamingAssetsをパッチサーバに設定します.
-		/// Set patch server URL to StreamingAssets.
-		/// </summary>
-		public static void SetPatchServerURLToStreamingAssets()
-		{
-#if UNITY_EDITOR || !UNITY_ANDROID
-			SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-#else
-			// Androidのみ、streamingAssetsPathの形式が異なる
-			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-#endif
-			Debug.LogFormat("{0}StreamingAssetsモードに設定 : {1}", kLog, patchServerURL);
-			history = new PatchHistory();
-			SetPatch(new Patch() { comment = "StreamingAssets", commitHash = "" });
-		}
-
 		/// <summary>
 		/// Sets base downloading URL to a web URL. The directory pointed to by this URL
 		/// on the web-server should have the same structure as the AssetBundles directory
@@ -174,8 +172,6 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void SetPatchServerURL(string url)
 		{
-
-
 			if (!url.EndsWith("/"))
 				url += "/";
 
@@ -384,7 +380,7 @@ namespace Mobcast.Coffee.AssetSystem
 				var hash = Hash128.Parse(patch.commitHash);
 				// ハッシュ値が0の場合、マニフェストはキャッシュからロードされず、常にダウンロードされます.
 				// If the hash value is 0, the manifest will be not loaded from the cache and will be always downloaded.
-				Debug.LogFormat("{0}アセットバンドルマニフェストのロード(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
+				Debug.LogFormat("{0}アセットバンドルマニフェスト ロードリクエスト生成(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
 				request = hash.isValid || !ready
 					? UnityWebRequest.GetAssetBundle(url, hash, 0)
 					: UnityWebRequest.GetAssetBundle(url);
@@ -392,7 +388,7 @@ namespace Mobcast.Coffee.AssetSystem
 			else
 			{
 				var hash = manifest.GetAssetBundleHash(assetBundleName);
-				Debug.LogFormat("{0}アセットバンドルのロード(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
+				Debug.LogFormat("{0}アセットバンドル ロードリクエスト生成(ハッシュ:{2}, キャッシュ済み:{3}) : {1}", kLog, url, hash.ToString().Substring(0, 4), Caching.IsVersionCached(assetBundleName, hash));
 				request = UnityWebRequest.GetAssetBundle(url, hash, 0);
 			}
 			return request;
@@ -628,7 +624,7 @@ namespace Mobcast.Coffee.AssetSystem
 					sb.AppendFormat("  > {0} ({1})\n", bundleName, newManifest.GetAssetBundleHash(bundleName).ToString().Substring(0, 4));
 				Debug.LogFormat("{0}マニフェスト更新　完了 : {2}\n{1}", kLog, sb, patch);
 			}
-			instance.latestPatch = patch;
+			instance.storedPatch = patch;
 		}
 
 		/// <summary>
@@ -671,16 +667,13 @@ namespace Mobcast.Coffee.AssetSystem
 
 		static public AssetLoadOperation UpdatePatchList(string url, Action<PatchHistory> onComplete = null)
 		{
-#if UNITY_EDITOR
-			if (isSimulationMode || isLocalServerMode)
+			if (isStreamingAssetsMode || isSimulationMode || isLocalServerMode)
 			{
-				Debug.LogFormat("{0}シミュレーションモード、ローカルサーバーモード、ストリーミングアセットモードでは、パッチリストが存在しません", kLog);
+				Debug.LogWarningFormat("{0}現在のモードでは、パッチリストが存在しません", kLog);
 				return null;
 			}
-#endif
 
 			Debug.LogFormat("{0}パッチリストの更新　開始 : {1}", kLog, url);
-
 			return LoadAssetAsync<PlainObject>(url, txt =>
 				{
 					history = new PatchHistory();

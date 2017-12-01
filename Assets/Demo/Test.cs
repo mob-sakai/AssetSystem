@@ -10,6 +10,7 @@ public class Test : MonoBehaviour
 	const string CloudServerURL = "https://s3-ap-northeast-1.amazonaws.com/patch.s3.sand.lip.mobcast.io/";
 
 	[Header("概要")]
+	public LayoutGroup layoutGroup;
 	public Text textSummary;
 
 //	[Header("サーバー")]
@@ -34,17 +35,12 @@ public class Test : MonoBehaviour
 
 	IEnumerator Start()
 	{
-//		prefabPatch.SetActive(false);
-
-//		toggleServerCloud.isOn = true;
-//
-//		toggleServerLocal.gameObject.SetActive(Application.isEditor);
-//		toggleServerSimulation.gameObject.SetActive(Application.isEditor);
-
 		yield return new WaitUntil(()=>AssetManager.ready);
 		textCurrentPatch.text = AssetManager.patch.ToString();
 
-		OnClick_UpdatePatchList();
+		// パッチURLを設定.
+		if(!AssetManager.isStreamingAssetsMode)
+			AssetManager.SetPatchServerURL(CloudServerURL);
 
 		InvokeRepeating("UpdateSummary", 0, 1);
 	}
@@ -59,62 +55,17 @@ public class Test : MonoBehaviour
 	void UpdateSummary()
 	{
 		textSummary.text = AssetManager.instance.ToString();
+		layoutGroup.SetLayoutVertical();
 	}
 
 
 	/// <summary>
-	/// パッチリストの更新
+	/// 最新のパッチに更新.
 	/// </summary>
 	public void OnClick_UpdatePatchList()
 	{
 		sliderProgress.value = 0;
-		/*
-		if (toggleServerCloud.isOn)
-		{
-			var patchParent = prefabPatch.transform.parent;
-			for (int i = 1; i < patchParent.childCount; i++)
-			{
-				Destroy(patchParent.GetChild(i).gameObject);
-			}
-
-			string path = AssetManager.patchServerURL + "history.json";
-			AssetManager.UpdatePatchList(path, list =>
-				{
-					if (list == null || list.patchList.Length == 0)
-					{
-						Debug.LogErrorFormat("パッチリストが存在しません : {0}", path);
-						AddPatchButton(new Patch(){ commitHash = "", comment = "デフォルト" });
-						return;
-					}
-
-					foreach (var p in list.patchList)
-					{
-						AddPatchButton(p);
-					}
-				});
-		}
-		else
-		{
-			AssetManager.SetPatch(AssetManager.patch);
-			textCurrentPatch.text = AssetManager.patch.ToString();
-		}
-		*/
-	}
-
-
-	void AddPatchButton(Patch p)
-	{
-		var go = Object.Instantiate(prefabPatch, prefabPatch.transform.parent);
-		string summary = p.ToString();
-		go.GetComponentInChildren<Button>().onClick.AddListener(() =>
-			{
-				AssetManager.SetPatch(p);
-				textCurrentPatch.text = summary;
-			});
-		go.name = summary;
-		go.GetComponentInChildren<Text>().text = summary;
-
-		go.SetActive(true);
+		AssetManager.SetPatchLatest(CloudServerURL + "__AssetSystemDemo/deploy/history.json");
 	}
 
 	/// <summary>

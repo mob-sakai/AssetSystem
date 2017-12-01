@@ -19,19 +19,20 @@ namespace Mobcast.Coffee.AssetSystem
 	static class AssetManagerMenu
 	{
 		const string MenuText_Root = "Coffee/AsssetSystem";
-		const string MenuText_SimulationMode = MenuText_Root + "/AssetBundle Mode/Simulation (Editor)";
-		const string MenuText_LocalServerMode = MenuText_Root + "/AssetBundle Mode/In Local Server (Editor)";
-		const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
+		const string MenuText_SimulationMode = MenuText_Root + "/Simulation Mode";
+		const string MenuText_LocalServerMode = MenuText_Root + "/Local Server Mode";
+		const string MenuText_StreamingAssetsMode = MenuText_Root + "/StreamingAssets Mode";
 		const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
 
 		static EditorOption editorOption { get { return EditorOption.instance; } }
 
-		/// <summary>
-		/// Raises the initialize on load method event.
-		/// </summary>
-		[InitializeOnLoadMethod]
-		static void OnInitializeOnLoadMethod()
+		[MenuItem(MenuText_SimulationMode, true)]
+		static bool Valid()
 		{
+			Menu.SetChecked(MenuText_SimulationMode, editorOption.mode == EditorOption.Mode.Simulation);
+			Menu.SetChecked(MenuText_LocalServerMode, editorOption.mode == EditorOption.Mode.LocalServer);
+			Menu.SetChecked(MenuText_StreamingAssetsMode, editorOption.mode == EditorOption.Mode.StreamingAssets);
+			return true;
 		}
 
 		[MenuItem(MenuText_SimulationMode)]
@@ -41,18 +42,10 @@ namespace Mobcast.Coffee.AssetSystem
 				return;
 
 			editorOption.mode = (editorOption.mode == EditorOption.Mode.Simulation) ? EditorOption.Mode.None : EditorOption.Mode.Simulation;
+			Valid();
+
 			if (IsLocalServerRunning())
 				KillRunningAssetBundleServer();
-
-			Valid();
-		}
-
-		[MenuItem(MenuText_LocalServerMode, true)]
-		static bool Valid()
-		{
-			Menu.SetChecked(MenuText_SimulationMode, editorOption.mode == EditorOption.Mode.Simulation);
-			Menu.SetChecked(MenuText_LocalServerMode, editorOption.mode == EditorOption.Mode.LocalServer);
-			return true;
 		}
 
 		[MenuItem(MenuText_LocalServerMode)]
@@ -64,15 +57,40 @@ namespace Mobcast.Coffee.AssetSystem
 			BuildAssetBundle();
 
 			editorOption.mode = (editorOption.mode == EditorOption.Mode.LocalServer) ? EditorOption.Mode.None : EditorOption.Mode.LocalServer;
+			Valid();
+
 			if (editorOption.mode == EditorOption.Mode.LocalServer)
 				Run();
 			else
 				KillRunningAssetBundleServer();
-
-			Valid();
 		}
 
-		[MenuItem(MenuText_BuildAssetBundle)]
+		[MenuItem(MenuText_StreamingAssetsMode)]
+		static void ToggleStreamingAssetsMode()
+		{
+			if (Application.isPlaying)
+				return;
+
+			editorOption.mode = (editorOption.mode == EditorOption.Mode.StreamingAssets) ? EditorOption.Mode.None : EditorOption.Mode.StreamingAssets;
+			Valid();
+
+			if (editorOption.mode == EditorOption.Mode.StreamingAssets)
+			{
+				BuildAssetBundle();
+
+				var src = Path.Combine("AssetBundles", AssetManager.Platform);
+				var dst = Path.Combine(Application.streamingAssetsPath, src);
+
+				Directory.CreateDirectory(dst);
+				if (Directory.Exists(dst))
+					FileUtil.DeleteFileOrDirectory(dst);
+
+				FileUtil.CopyFileOrDirectory(src, dst);
+				AssetDatabase.Refresh();
+			}
+		}
+
+		[MenuItem(MenuText_BuildAssetBundle, false, 2000)]
 		static void BuildAssetBundle()
 		{
 			if (Application.isPlaying)
