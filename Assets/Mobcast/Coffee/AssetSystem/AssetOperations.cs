@@ -411,7 +411,7 @@ namespace Mobcast.Coffee.AssetSystem
 				}
 				else
 				{
-					rate += op.progress;
+					rate += Mathf.Clamp01(op.progress);
 				}
 			}
 			progress = rate / m_Operations.Count;
