@@ -13,6 +13,27 @@ namespace Mobcast.Coffee.AssetSystem
 
 	public class AssetManager : MonoSingleton<AssetManager>
 	{
+		#if UNITY_EDITOR
+		public class EditorOption : UnityEditor.ScriptableSingleton<EditorOption>
+		{
+			public enum Mode
+			{
+				None,
+				Simulation,
+				LocalServer,
+			}
+
+			public Mode mode = Mode.Simulation;
+			public int m_LocalServerProcessId = 0;
+
+			public static bool isSimulationMode { get { return instance.mode == Mode.Simulation; } set { instance.mode = value ? Mode.Simulation : Mode.None; } }
+
+			public static bool isLocalServerMode { get { return instance.mode == Mode.LocalServer; } set { instance.mode = value ? Mode.LocalServer : Mode.None; } }
+
+			public static int localServerProcessId { get { return instance.m_LocalServerProcessId; } set { instance.m_LocalServerProcessId = value; } }
+		}
+		#endif
+
 		public const string kLog = "[AssetManager] ";
 
 #if UNITY_STANDALONE_OSX
@@ -68,10 +89,20 @@ namespace Mobcast.Coffee.AssetSystem
 		public const string MenuText_StreamingAssets = MenuText_Root + "/AssetBundle Mode/In StreamingAssets";
 		public const string MenuText_BuildAssetBundle = MenuText_Root + "/Build AssetBundle (Uncompressed)";
 
-		public static bool isSimulationMode { get; private set; }
-		public static bool isLocalServerMode { get; private set; }
 
 		#endif
+
+#if UNITY_EDITOR
+		public static bool isLocalServerMode { get { return EditorOption.isLocalServerMode; } }
+#else
+		public static bool isLocalServerMode { get { return false; } }
+#endif
+
+#if UNITY_EDITOR
+		public static bool isSimulationMode { get { return EditorOption.isSimulationMode; } }
+#else
+		public static bool isSimulationMode { get { return false; } }
+#endif
 
 		static string Dump(IEnumerable<string> self, string sep = ", ")
 		{
@@ -101,10 +132,6 @@ namespace Mobcast.Coffee.AssetSystem
 
 		protected virtual IEnumerator Start()
 		{
-#if UNITY_EDITOR
-			isSimulationMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_SimulationMode);
-			isLocalServerMode = UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode);
-#endif
 			yield return new WaitUntil(() => Caching.ready);
 
 			// 最後に利用したパッチのマニフェストファイルがダウンロード済みであれば、そのパッチ(=マニフェスト)を復元.
@@ -112,63 +139,36 @@ namespace Mobcast.Coffee.AssetSystem
 			patch = leatestPatch;
 			if (Caching.IsVersionCached(Platform, Hash128.Parse(patch.commitHash)))
 			{
-				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元", kLog, patch);
+				Debug.LogFormat("{0}最後に利用したパッチ [{1}] を復元します", kLog, patch);
 				yield return StartCoroutine(SetPatch(patch));
+				Debug.LogFormat("{0}パッチ [{1}] を復元しました", kLog, patch);
 			}
 			else
 			{
 				Debug.LogWarningFormat("{0}マニフェストがキャッシュにありません. 最後に利用したパッチ [{1}] は復元されません", kLog, patch);
 				ClearCachedAssetBundleAll();
+				Debug.LogWarningFormat("{0}アセットバンドルキャッシュはクリアされました", kLog);
 			}
-			ready = true;
-			Debug.LogFormat("{0}準備完了", kLog);
 
 #if UNITY_EDITOR
-			if (isLocalServerMode)
+			if(isSimulationMode)
 			{
-				EnableLocalServerMode();
+				Debug.LogWarningFormat("{0}シミュレーションモードに設定します", kLog);
+				patchServerURL = "SimulationMode/";
 			}
-			else if (isSimulationMode)
+			else if(isLocalServerMode)
 			{
-				EnableSimulationMode();
+				Debug.LogWarningFormat("{0}ローカルサーバーモードに設定します : {1}", kLog, patchServerURL);
+				patchServerURL = "http://localhost:7888/";
+				yield return SetPatch(new Patch() { comment = "LocalServerMode", commitHash = "" });
 			}
 #endif
 
+			ready = true;
+			Debug.LogFormat("{0}準備完了", kLog);
 			yield break;
 		}
 
-#if UNITY_EDITOR
-		/// <summary>
-		/// ローカルサーバーモードに設定します.
-		/// Sets the local server mode.
-		/// </summary>
-		public static void EnableLocalServerMode()
-		{
-			// ローカルパッチサーバを起動
-			// Start local patch server.
-			if (!isLocalServerMode)
-				UnityEditor.EditorApplication.ExecuteMenuItem(MenuText_LocalServerMode);
-
-			patchServerURL = "http://localhost:7888/";
-			Debug.LogWarningFormat("{0}ローカルサーバーモードに設定 : {1}", kLog, patchServerURL);
-			history = new PatchHistory();
-			SetPatch(new Patch(){ comment = "LocalServerMode", commitHash = "" });
-			isLocalServerMode = true;
-		}
-
-		/// <summary>
-		/// シミュレーションモードに設定します.
-		/// Sets the simulation mode.
-		/// </summary>
-		public static void EnableSimulationMode()
-		{
-			patchServerURL = "SimulationMode/";
-			Debug.LogWarningFormat("{0}シミュレーションモードに設定", kLog);
-			history = new PatchHistory();
-			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, true);
-			isSimulationMode = true;
-		}
-#endif
 
 		/// <summary>
 		/// StreamingAssetsをパッチサーバに設定します.
@@ -176,12 +176,12 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void SetPatchServerURLToStreamingAssets()
 		{
-			#if UNITY_EDITOR || !UNITY_ANDROID
+#if UNITY_EDITOR || !UNITY_ANDROID
 			SetPatchServerURL("file://" + System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-			#else
+#else
 			// Androidのみ、streamingAssetsPathの形式が異なる
 			SetPatchServerURL(System.IO.Path.Combine(Application.streamingAssetsPath, "AssetBundles"));
-			#endif
+#endif
 			Debug.LogFormat("{0}StreamingAssetsモードに設定 : {1}", kLog, patchServerURL);
 			history = new PatchHistory();
 			SetPatch(new Patch() { comment = "StreamingAssets", commitHash = "" });
@@ -194,17 +194,7 @@ namespace Mobcast.Coffee.AssetSystem
 		/// </summary>
 		public static void SetPatchServerURL(string url)
 		{
-#if UNITY_EDITOR
-			//ローカルサーバ起動中の場合、ローカルサーバを停止
-			if (UnityEditor.Menu.GetChecked(AssetManager.MenuText_LocalServerMode))
-			{
-				UnityEditor.EditorApplication.ExecuteMenuItem(AssetManager.MenuText_LocalServerMode);
-			}
 
-			UnityEditor.Menu.SetChecked(AssetManager.MenuText_SimulationMode, false);
-			isSimulationMode = false;
-			isLocalServerMode = false;
-#endif
 
 			if (!url.EndsWith("/"))
 				url += "/";
@@ -676,7 +666,7 @@ namespace Mobcast.Coffee.AssetSystem
 			UnloadAssetbundlesAll();
 
 #if UNITY_EDITOR
-			if(isSimulationMode && ready)
+			if (isSimulationMode && ready)
 				return null;
 #endif
 

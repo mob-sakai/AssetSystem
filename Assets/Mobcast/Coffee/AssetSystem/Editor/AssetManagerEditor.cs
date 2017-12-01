@@ -15,13 +15,8 @@ namespace Mobcast.Coffee.AssetSystem
 	/// <summary>
 	/// AssetManager Menu.
 	/// </summary>
-	class AssetManagerMenu : ScriptableSingleton<AssetManagerMenu>
+	class AssetManagerMenu
 	{
-		[SerializeField] bool m_SimulationMode = true;
-
-		[SerializeField]
-		int m_ServerPID = 0;
-
 		/// <summary>
 		/// Raises the initialize on load method event.
 		/// </summary>
@@ -34,7 +29,10 @@ namespace Mobcast.Coffee.AssetSystem
 		[MenuItem(AssetManager.MenuText_SimulationMode)]
 		static void ToggleSimulationMode()
 		{
-			instance.m_SimulationMode = !instance.m_SimulationMode;
+			if (Application.isPlaying)
+				return;
+
+			AssetManager.EditorOption.isSimulationMode = !AssetManager.EditorOption.isSimulationMode;
 
 			if (IsLocalServerRunning())
 				KillRunningAssetBundleServer();
@@ -45,7 +43,7 @@ namespace Mobcast.Coffee.AssetSystem
 		[MenuItem(AssetManager.MenuText_LocalServerMode, true)]
 		static bool Valid()
 		{
-			Menu.SetChecked(AssetManager.MenuText_SimulationMode, instance.m_SimulationMode);
+			Menu.SetChecked(AssetManager.MenuText_SimulationMode, AssetManager.EditorOption.isSimulationMode);
 			Menu.SetChecked(AssetManager.MenuText_LocalServerMode, IsLocalServerRunning());
 			return true;
 		}
@@ -55,12 +53,12 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			BuildAssetBundle();
 
-			if (!IsLocalServerRunning())
+			AssetManager.EditorOption.isSimulationMode = !IsLocalServerRunning();
+			if (AssetManager.EditorOption.isSimulationMode)
 				Run();
 			else
 				KillRunningAssetBundleServer();
 
-			instance.m_SimulationMode = false;
 			Valid();
 		}
 
@@ -84,7 +82,7 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			try
 			{
-				return instance.m_ServerPID != 0 && !Process.GetProcessById(instance.m_ServerPID).HasExited;
+				return AssetManager.EditorOption.localServerProcessId != 0 && !Process.GetProcessById(AssetManager.EditorOption.localServerProcessId).HasExited;
 			}
 			catch
 			{
@@ -97,12 +95,12 @@ namespace Mobcast.Coffee.AssetSystem
 			// Kill the last time we ran
 			try
 			{
-				if (instance.m_ServerPID == 0)
+				if (AssetManager.EditorOption.localServerProcessId == 0)
 					return;
 
-				var lastProcess = Process.GetProcessById(instance.m_ServerPID);
+				var lastProcess = Process.GetProcessById(AssetManager.EditorOption.localServerProcessId);
 				lastProcess.Kill();
-				instance.m_ServerPID = 0;
+				AssetManager.EditorOption.localServerProcessId = 0;
 			}
 			catch
 			{
@@ -165,7 +163,7 @@ namespace Mobcast.Coffee.AssetSystem
 			else
 			{
 				//We seem to have launched, let's save the PID
-				instance.m_ServerPID = launchProcess.Id;
+				AssetManager.EditorOption.localServerProcessId = launchProcess.Id;
 
 				//Add process callback.
 				launchProcess.OutputDataReceived += (sender, e) => Log(UnityEngine.Debug.Log, e.Data);
@@ -197,23 +195,8 @@ namespace Mobcast.Coffee.AssetSystem
 		{
 			base.OnInspectorGUI();
 
-//			var current = target as AssetManager;
-			 
-			//			UIManager manager = target as UIManager;
-
 			using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
 			{
-
-//				EditorGUILayout.Toggle("Sumilation Mode", AssetManager.isSimulationMode);
-//				EditorGUILayout.Toggle("Local Server Mode", AssetManager.isLocalServerMode);
-
-
-//				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_DomainURL"));
-//				EditorGUILayout.PropertyField(serializedObject.FindProperty("m_Patch"));
-
-
-//				EditorGUILayout.TextField("ドメインURL", AssetManager.domainURL);
-//				EditorGUILayout.TextField("バージョン", AssetManager.m_PatchHash);
 				GUILayout.Label(string.Format("Space Occupied : {0}", Caching.spaceOccupied));
 
 
